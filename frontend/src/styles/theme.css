@@ -1,0 +1,257 @@
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --font-size: 16px;
+  
+  /* Dark Green Theme */
+  --primary: #1b7f5f;
+  --primary-dark: #146047;
+  --primary-light: #27a57a;
+  --primary-foreground: #eafff6;
+  
+  --secondary: #0f4d3a;
+  --secondary-dark: #0b3a2c;
+  --secondary-light: #1f6d52;
+  --secondary-foreground: #eafff6;
+  
+  --accent: #3ddc97;
+  --accent-dark: #2fb579;
+  --accent-light: #5fe3ae;
+  --accent-foreground: #0b120f;
+  
+  /* Backgrounds */
+  --background: #0b0f0d;
+  --background-secondary: #0f1512;
+  --foreground: #e6f2ec;
+  
+  /* Card system */
+  --card: #121b17;
+  --card-foreground: #e6f2ec;
+  
+  /* Neutral colors */
+  --muted: #1a2420;
+  --muted-foreground: #8aa39a;
+  --border: #23312b;
+  
+  /* Interactive states */
+  --input: #121b17;
+  --input-background: #0f1512;
+  --ring: #2fb579;
+  
+  /* System colors */
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --success: #2fb579;
+  --success-foreground: #eafff6;
+  --warning: #eab308;
+  --warning-foreground: #1a1300;
+  
+  /* Popover */
+  --popover: #121b17;
+  --popover-foreground: #e6f2ec;
+  
+  /* Switch */
+  --switch-background: #2a3a33;
+  
+  /* Border radius system */
+  --radius: 0.75rem;
+  
+  /* Font weights */
+  --font-weight-medium: 600;
+  --font-weight-normal: 400;
+  
+  /* Sidebar */
+  --sidebar: #0f1512;
+  --sidebar-foreground: #e6f2ec;
+  --sidebar-primary: #1b7f5f;
+  --sidebar-primary-foreground: #eafff6;
+  --sidebar-accent: #16221e;
+  --sidebar-accent-foreground: #e6f2ec;
+  --sidebar-border: #23312b;
+  --sidebar-ring: #2fb579;
+  
+  /* Chart colors */
+  --chart-1: #1b7f5f;
+  --chart-2: #3ddc97;
+  --chart-3: #2fb579;
+  --chart-4: #1f6d52;
+  --chart-5: #5fe3ae;
+  
+  /* Text sizes */
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.875rem;
+  --text-4xl: 2.25rem;
+  
+  /* Spacing scale */
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+  --spacing-2xl: 3rem;
+}
+
+.dark {
+  --background: #0b0f0d;
+  --background-secondary: #0f1512;
+  --foreground: #e6f2ec;
+  --card: #121b17;
+  --card-foreground: #e6f2ec;
+  --popover: #121b17;
+  --popover-foreground: #e6f2ec;
+  --primary: #1b7f5f;
+  --primary-dark: #146047;
+  --primary-light: #27a57a;
+  --primary-foreground: #eafff6;
+  --secondary: #0f4d3a;
+  --secondary-dark: #0b3a2c;
+  --secondary-light: #1f6d52;
+  --secondary-foreground: #eafff6;
+  --accent: #3ddc97;
+  --accent-dark: #2fb579;
+  --accent-light: #5fe3ae;
+  --accent-foreground: #0b120f;
+  --muted: #1a2420;
+  --muted-foreground: #8aa39a;
+  --border: #23312b;
+  --input: #121b17;
+  --input-background: #0f1512;
+  --ring: #2fb579;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --sidebar: #0f1512;
+  --sidebar-foreground: #e6f2ec;
+  --sidebar-primary: #1b7f5f;
+  --sidebar-primary-foreground: #eafff6;
+  --sidebar-accent: #16221e;
+  --sidebar-accent-foreground: #e6f2ec;
+  --sidebar-border: #23312b;
+  --sidebar-ring: #2fb579;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-background-secondary: var(--background-secondary);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-dark: var(--primary-dark);
+  --color-primary-light: var(--primary-light);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-dark: var(--secondary-dark);
+  --color-secondary-light: var(--secondary-light);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-dark: var(--accent-dark);
+  --color-accent-light: var(--accent-light);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-input-background: var(--input-background);
+  --color-switch-background: var(--switch-background);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  }
+
+  /**
+  * Default typography styles for HTML elements (h1-h4, p, label, button, input).
+  * These are in @layer base, so Tailwind utility classes (like text-sm, text-lg) automatically override them.
+  */
+
+  html {
+    font-size: var(--font-size);
+  }
+
+  h1 {
+    font-size: var(--text-4xl);
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+  }
+
+  h2 {
+    font-size: var(--text-3xl);
+    font-weight: 700;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+  }
+
+  h3 {
+    font-size: var(--text-2xl);
+    font-weight: 600;
+    line-height: 1.4;
+  }
+
+  h4 {
+    font-size: var(--text-xl);
+    font-weight: 600;
+    line-height: 1.4;
+  }
+
+  p {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-normal);
+    line-height: 1.6;
+  }
+
+  label {
+    font-size: var(--text-sm);
+    font-weight: 500;
+    line-height: 1.5;
+  }
+
+  button {
+    font-size: var(--text-base);
+    font-weight: 500;
+    line-height: 1.5;
+  }
+
+  input {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-normal);
+    line-height: 1.5;
+  }
+}
