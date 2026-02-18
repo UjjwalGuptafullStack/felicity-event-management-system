@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { loginOrganizer } from '../../api/auth';
 import { useAuth } from '../../context/AuthContext';
@@ -6,10 +6,23 @@ import './Login.css';
 
 const OrganizerLogin = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, isAuthenticated, actorType, role } = useAuth();
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      if (actorType === 'organizer') {
+        navigate('/organizer/dashboard', { replace: true });
+      } else if (actorType === 'user' && role === 'participant') {
+        navigate('/participant/dashboard', { replace: true });
+      } else if (actorType === 'user' && role === 'admin') {
+        navigate('/admin/dashboard', { replace: true });
+      }
+    }
+  }, [isAuthenticated, actorType, role, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -72,6 +85,9 @@ const OrganizerLogin = () => {
         </form>
 
         <div className="auth-footer">
+          <p>
+            <Link to="/organizer/forgot-password">Forgot Password?</Link>
+          </p>
           <p>
             <Link to="/">Back to Home</Link>
           </p>

@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { getAdminStats } from '../../api/admin';
 import { StatsCard } from '../../components/design-system/StatsCard';
 import { GradientButton } from '../../components/design-system/GradientButton';
-import { Users, UserCog, Calendar, KeyRound, LogOut, ShieldCheck } from 'lucide-react';
+import { Users, UserCog, Calendar, KeyRound, LogOut, ShieldCheck, UserPlus } from 'lucide-react';
 import { motion } from 'motion/react';
 
 function AdminDashboard() {
@@ -48,12 +48,21 @@ function AdminDashboard() {
               Admin Dashboard
             </h2>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => navigate('/admin/organizers')}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors text-sm"
+            >
+              <UserPlus className="w-4 h-4" />
+              <span className="hidden sm:inline">Manage Clubs</span>
+            </motion.button>
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => navigate('/admin/password-resets')}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-secondary/10 text-secondary hover:bg-secondary/20 transition-colors text-sm"
             >
               <KeyRound className="w-4 h-4" />
               <span className="hidden sm:inline">Password Resets</span>
@@ -61,17 +70,8 @@ function AdminDashboard() {
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => navigate('/admin/organizers')}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-secondary/10 text-secondary hover:bg-secondary/20 transition-colors"
-            >
-              <UserCog className="w-4 h-4" />
-              <span className="hidden sm:inline">Manage Organizers</span>
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
               onClick={logout}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors text-sm"
             >
               <LogOut className="w-4 h-4" />
               <span className="hidden sm:inline">Logout</span>
@@ -128,11 +128,11 @@ function AdminDashboard() {
         >
           <h3 className="text-xl font-bold text-foreground mb-4">Quick Actions</h3>
           <div className="flex flex-wrap gap-4">
-            <GradientButton variant="primary" onClick={() => navigate('/admin/password-resets')}>
-              Review Password Reset Requests
+            <GradientButton variant="primary" onClick={() => navigate('/admin/organizers')}>
+              Manage Clubs / Organizers
             </GradientButton>
-            <GradientButton variant="secondary" onClick={() => navigate('/admin/organizers')}>
-              Manage Organizers
+            <GradientButton variant="secondary" onClick={() => navigate('/admin/password-resets')}>
+              Review Password Reset Requests
             </GradientButton>
           </div>
         </motion.div>

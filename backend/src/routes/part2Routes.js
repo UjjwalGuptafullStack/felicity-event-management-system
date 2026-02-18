@@ -14,6 +14,13 @@ const passwordResetController = require('../controllers/passwordResetController'
 const discussionController = require('../controllers/discussionController');
 const feedbackController = require('../controllers/feedbackController');
 
+// ===== PUBLIC PASSWORD RESET REQUEST (No auth required) =====
+
+router.post(
+  '/password-reset/request',
+  passwordResetController.submitPublicResetRequest
+);
+
 // ===== MERCHANDISE ROUTES (Tier A1) =====
 
 // Participant routes

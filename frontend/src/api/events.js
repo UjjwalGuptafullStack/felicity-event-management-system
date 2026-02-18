@@ -8,6 +8,10 @@ export const browseEvents = (params) =>
 export const getEventDetails = (id) => 
   api.get(`/participant/events/${id}`);
 
+// Alias used in EventDetails page
+export const getEventById = (id) =>
+  api.get(`/participant/events/${id}`);
+
 // Register for event
 export const registerForEvent = (id, data) => 
   api.post(`/participant/events/${id}/register`, data);
@@ -58,4 +62,3 @@ export const getFeedbackStats = (id) =>
 
 // Aliases for compatibility
 export const getAllEvents = browseEvents;
-export const getEventById = getEventDetails;

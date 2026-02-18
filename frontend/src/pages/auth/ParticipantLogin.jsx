@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { loginParticipant } from '../../api/auth';
 import { useAuth } from '../../context/AuthContext';
@@ -6,10 +6,26 @@ import './Login.css';
 
 const ParticipantLogin = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, isAuthenticated, actorType, role } = useAuth();
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      if (actorType === 'user' && role === 'participant') {
+        // Check if onboarding is completed
+        const storedActor = JSON.parse(localStorage.getItem('actor') || '{}');
+        const onboardingDone = storedActor?.user?.onboardingCompleted;
+        navigate(onboardingDone ? '/participant/dashboard' : '/participant/onboarding', { replace: true });
+      } else if (actorType === 'user' && role === 'admin') {
+        navigate('/admin/dashboard', { replace: true });
+      } else if (actorType === 'organizer') {
+        navigate('/organizer/dashboard', { replace: true });
+      }
+    }
+  }, [isAuthenticated, actorType, role, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -24,7 +40,8 @@ const ParticipantLogin = () => {
           role: 'participant',
           user: response.data.user,
         });
-        navigate('/dashboard');
+        const onboardingDone = response.data.user?.onboardingCompleted;
+        navigate(onboardingDone ? '/participant/dashboard' : '/participant/onboarding', { replace: true });
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed');

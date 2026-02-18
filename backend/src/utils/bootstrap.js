@@ -35,24 +35,48 @@ const bootstrapAdmin = async () => {
       return;
     }
 
-    // Check if admin already exists
+    const targetEmail = config.admin.email.toLowerCase();
+
+    // Check if the target admin already exists
     const existingAdmin = await User.findOne({
-      email: config.admin.email.toLowerCase(),
+      email: targetEmail,
       role: USER_ROLES.ADMIN
     });
 
     if (existingAdmin) {
       console.log('✓ Admin user already exists');
+      
+      // Remove any other admin accounts (ensure only one admin)
+      const otherAdmins = await User.find({
+        email: { $ne: targetEmail },
+        role: USER_ROLES.ADMIN
+      });
+
+      if (otherAdmins.length > 0) {
+        await User.deleteMany({
+          email: { $ne: targetEmail },
+          role: USER_ROLES.ADMIN
+        });
+        console.log(`✓ Removed ${otherAdmins.length} unauthorized admin account(s)`);
+      }
+      
       return;
     }
 
-    // Create admin user
+    // Remove any existing admin accounts with different emails
+    const allAdmins = await User.find({ role: USER_ROLES.ADMIN });
+    if (allAdmins.length > 0) {
+      await User.deleteMany({ role: USER_ROLES.ADMIN });
+      console.log(`✓ Removed ${allAdmins.length} unauthorized admin account(s)`);
+    }
+
+    // Create the only valid admin user
     const passwordHash = await hashPassword(config.admin.password);
 
     const admin = new User({
       firstName: config.admin.firstName,
       lastName: config.admin.lastName,
-      email: config.admin.email.toLowerCase(),
+      email: targetEmail,
       passwordHash,
       role: USER_ROLES.ADMIN,
       participantType: null // Admin is not a participant
@@ -62,7 +86,7 @@ const bootstrapAdmin = async () => {
 
     console.log('✓ Admin user created successfully');
     console.log(`  Email: ${config.admin.email}`);
-    console.log('  ⚠ Change password after first login');
+    console.log('  ⚠ This is the only valid admin account');
   } catch (error) {
     console.error('✗ Admin bootstrap failed:', error.message);
     // Don't exit - let server start but log error

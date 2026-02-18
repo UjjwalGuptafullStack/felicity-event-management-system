@@ -27,7 +27,7 @@ const getProfile = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      profile: {
+      user: {
         id: user._id,
         firstName: user.firstName,
         lastName: user.lastName,
@@ -40,6 +40,7 @@ const getProfile = async (req, res) => {
           interests: user.preferences.interests || [],
           followedOrganizers: user.preferences.followedOrganizers || []
         },
+        onboardingCompleted: user.onboardingCompleted || false,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt
       }
@@ -84,7 +85,8 @@ const updateProfile = async (req, res) => {
       lastName,
       contactNumber,
       collegeOrOrg,
-      interests
+      interests,
+      onboardingCompleted
     } = req.body;
 
     // Update allowed fields
@@ -100,6 +102,9 @@ const updateProfile = async (req, res) => {
         });
       }
       user.preferences.interests = interests;
+    }
+    if (onboardingCompleted !== undefined) {
+      user.onboardingCompleted = onboardingCompleted;
     }
 
     await user.save();

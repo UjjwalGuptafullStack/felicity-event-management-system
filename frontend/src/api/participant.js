@@ -8,6 +8,10 @@ export const getProfile = () =>
 export const updateProfile = (data) => 
   api.patch('/participant/me/profile', data);
 
+// Update onboarding preferences (interests + followed organizers)
+export const completeOnboarding = (data) =>
+  api.patch('/participant/me/profile', { ...data, onboardingCompleted: true });
+
 // Follow organizer
 export const followOrganizer = (id) => 
   api.post(`/participant/organizers/${id}/follow`);
@@ -38,4 +42,26 @@ export const registerForEvent = (eventId, ticketTypeId) =>
   api.post(`/participant/events/${eventId}/register`, { ticketTypeId });
 
 export const getMyRegistrations = () =>
-  api.get('/participant/registrations');
+  api.get('/participant/me/registrations');
+
+export const getParticipantDashboard = () =>
+  api.get('/participant/me/dashboard');
+
+// ── Team APIs ──────────────────────────────────────────────────────────────
+export const createTeam = (eventId, data) =>
+  api.post(`/participant/events/${eventId}/teams`, data);
+
+export const joinTeamByCode = (inviteCode) =>
+  api.post('/participant/teams/join', { inviteCode });
+
+export const getMyTeams = () =>
+  api.get('/participant/me/teams');
+
+export const getTeamDetail = (teamId) =>
+  api.get(`/participant/teams/${teamId}`);
+
+export const cancelTeam = (teamId) =>
+  api.delete(`/participant/teams/${teamId}`);
+
+export const leaveTeam = (teamId) =>
+  api.post(`/participant/teams/${teamId}/leave`);

@@ -51,8 +51,12 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
+    // Clear all authentication data
     localStorage.removeItem('token');
     localStorage.removeItem('actor');
+    
+    // Clear any other potential auth-related items
+    localStorage.clear();
     
     setAuth({
       token: null,
@@ -61,6 +65,9 @@ export const AuthProvider = ({ children }) => {
       user: null,
       isAuthenticated: false,
     });
+    
+    // Redirect to home page
+    window.location.href = '/';
   };
 
   const value = {

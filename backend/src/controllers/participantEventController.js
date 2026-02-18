@@ -19,6 +19,8 @@ const Event = require('../models/Event');
 const Registration = require('../models/Registration');
 const Ticket = require('../models/Ticket');
 const Organizer = require('../models/Organizer');
+const User = require('../models/User');
+const { sendRegistrationConfirmationEmail } = require('../utils/emailService');
 const { EVENT_STATUS, REGISTRATION_STATUS, REGISTRATION_TYPES, EVENT_TYPES } = require('../utils/constants');
 
 /**
@@ -98,14 +100,17 @@ const browseEvents = async (req, res) => {
       count: events.length,
       events: events.map(event => ({
         id: event._id,
+        _id: event._id,
         name: event.name,
         description: event.description,
         type: event.type,
+        categories: event.categories || [],
         eligibility: event.eligibility,
         registrationDeadline: event.registrationDeadline,
         startDate: event.startDate,
         endDate: event.endDate,
         registrationFee: event.registrationFee,
+        registrationLimit: event.registrationLimit,
         tags: event.tags,
         organizer: event.organizerId ? {
           id: event.organizerId._id,
@@ -189,7 +194,8 @@ const getEventDetails = async (req, res) => {
           description: event.organizerId.description,
           contactEmail: event.organizerId.contactEmail
         } : null,
-        computed: {
+        teamRegistration: event.teamRegistration || { enabled: false },
+      computed: {
           isRegistrationOpen,
           isFull
         }
@@ -301,12 +307,27 @@ const registerForEvent = async (req, res) => {
     
     const ticket = new Ticket({
       registrationId: registration._id,
-      ticketId: ticketId
+      ticketId: ticketId,
+      qrCode: ticketId
     });
 
     await ticket.save();
 
-    // 5. Return success
+    // 5. Send confirmation email (non-blocking)
+    let emailPreviewUrl = null;
+    try {
+      const participant = await User.findById(participantId).select('name email');
+      if (participant) {
+        const emailResult = await sendRegistrationConfirmationEmail(participant, event, ticket);
+        if (emailResult && emailResult.previewUrl) {
+          emailPreviewUrl = emailResult.previewUrl;
+        }
+      }
+    } catch (emailErr) {
+      console.warn('Registration email failed (non-fatal):', emailErr.message);
+    }
+
+    // 6. Return success
     res.status(201).json({
       success: true,
       message: 'Registration successful',
@@ -322,7 +343,9 @@ const registerForEvent = async (req, res) => {
         id: ticket._id,
         ticketId: ticket.ticketId,
         issuedAt: ticket.issuedAt
-      }
+      },
+      // In dev mode (Ethereal), provides a URL to preview the confirmation email
+      ...(emailPreviewUrl && { emailPreviewUrl })
     });
   } catch (error) {
     // Handle duplicate registration (unique index violation)
@@ -625,10 +648,21 @@ const purchaseMerchandise = async (req, res) => {
     
     const ticket = new Ticket({
       registrationId: registration._id,
-      ticketId: ticketId
+      ticketId: ticketId,
+      qrCode: ticketId
     });
 
     await ticket.save();
+
+    // Send confirmation email (non-blocking)
+    try {
+      const participant = await User.findById(participantId).select('name email');
+      if (participant) {
+        await sendRegistrationConfirmationEmail(participant, event, ticket);
+      }
+    } catch (emailErr) {
+      console.warn('Merchandise purchase email failed (non-fatal):', emailErr.message);
+    }
 
     // Decrement stock
     if (!event.merchandiseDetails) {

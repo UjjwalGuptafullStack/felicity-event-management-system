@@ -11,6 +11,7 @@
 const crypto = require('crypto');
 const Organizer = require('../models/Organizer');
 const { hashPassword } = require('../utils/authHelpers');
+const { sendOrganizerCredentialsEmail } = require('../utils/emailService');
 
 /**
  * Generate random password for new organizer
@@ -33,7 +34,7 @@ const generateLoginEmail = (name) => {
     .replace(/\s+/g, '.')
     .replace(/[^a-z0-9.]/g, '');
   
-  return `${sanitized}@organizer.felicity.iiit.ac.in`;
+  return `${sanitized}@iiit.ac.in`;
 };
 
 /**
@@ -91,8 +92,17 @@ const createOrganizer = async (req, res) => {
 
     await organizer.save();
 
-    // Return organizer details with temporary credentials
-    // Admin must manually share these with organizer
+    const credentials = {
+      loginEmail: organizer.loginEmail,
+      temporaryPassword,
+      note: 'Credentials have been emailed to the organizer. Share them again if needed.'
+    };
+
+    // Send email – non-blocking, failure does not affect the response
+    sendOrganizerCredentialsEmail(organizer, credentials).catch(err =>
+      console.error('Credential email failed:', err.message)
+    );
+
     res.status(201).json({
       success: true,
       message: 'Organizer created successfully',
@@ -108,7 +118,7 @@ const createOrganizer = async (req, res) => {
       credentials: {
         loginEmail: organizer.loginEmail,
         temporaryPassword: temporaryPassword,
-        note: 'Share these credentials with the organizer securely. Password should be changed after first login.'
+        note: 'Credentials emailed to the organizer contact address. Share them again if needed.'
       }
     });
   } catch (error) {
@@ -350,11 +360,74 @@ const getAdminDashboard = async (req, res) => {
   }
 };
 
+/**
+ * Get admin stats (summary counts for dashboard)
+ * GET /admin/stats
+ */
+const getAdminStats = async (req, res) => {
+  try {
+    const User = require('../models/User');
+    const Event = require('../models/Event');
+    const PasswordResetRequest = require('../models/PasswordResetRequest');
+    const { USER_ROLES } = require('../utils/constants');
+
+    const [totalUsers, totalOrganizers, totalEvents, pendingPasswordResets] = await Promise.all([
+      User.countDocuments({ role: { $ne: USER_ROLES.ADMIN } }),
+      Organizer.countDocuments(),
+      Event.countDocuments(),
+      PasswordResetRequest.countDocuments({ status: 'pending' })
+    ]);
+
+    res.status(200).json({
+      success: true,
+      totalUsers,
+      totalOrganizers,
+      totalEvents,
+      pendingPasswordResets
+    });
+  } catch (error) {
+    console.error('Get admin stats error:', error);
+    res.status(500).json({ success: false, message: 'Failed to retrieve stats' });
+  }
+};
+
+/**
+ * Delete organizer permanently
+ * DELETE /admin/organizers/:id
+ */
+const deleteOrganizer = async (req, res) => {
+  try {
+    const organizer = await Organizer.findById(req.params.id);
+
+    if (!organizer) {
+      return res.status(404).json({
+        success: false,
+        message: 'Organizer not found'
+      });
+    }
+
+    await Organizer.findByIdAndDelete(req.params.id);
+
+    res.status(200).json({
+      success: true,
+      message: `Organizer "${organizer.name}" has been permanently deleted.`
+    });
+  } catch (error) {
+    console.error('Delete organizer error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete organizer'
+    });
+  }
+};
+
 module.exports = {
   createOrganizer,
   listOrganizers,
   getOrganizer,
   disableOrganizer,
   enableOrganizer,
+  deleteOrganizer,
+  getAdminStats,
   getAdminDashboard
 };

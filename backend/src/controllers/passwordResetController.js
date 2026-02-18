@@ -7,7 +7,73 @@
 const PasswordResetRequest = require('../models/PasswordResetRequest');
 const Organizer = require('../models/Organizer');
 const { hashPassword } = require('../utils/authHelpers');
+const { sendPasswordResetApprovedEmail, sendPasswordResetRejectedEmail } = require('../utils/emailService');
 const crypto = require('crypto');
+
+/**
+ * Submit password reset request - PUBLIC (No auth required)
+ * POST /password-reset/request
+ */
+const submitPublicResetRequest = async (req, res) => {
+  try {
+    const { email, reason } = req.body;
+
+    if (!email || !reason || reason.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email and reason are required'
+      });
+    }
+
+    // Find organizer by login email
+    const organizer = await Organizer.findOne({ loginEmail: email.toLowerCase() });
+
+    if (!organizer) {
+      // Don't reveal if email exists or not (security)
+      return res.status(200).json({
+        success: true,
+        message: 'If your email is registered, your request has been submitted.'
+      });
+    }
+
+    // Check for existing pending request
+    const existingRequest = await PasswordResetRequest.findOne({
+      organizerId: organizer._id,
+      status: 'pending'
+    });
+
+    if (existingRequest) {
+      return res.status(400).json({
+        success: false,
+        message: 'You already have a pending password reset request'
+      });
+    }
+
+    // Create new request
+    const resetRequest = new PasswordResetRequest({
+      organizerId: organizer._id,
+      reason: reason.trim()
+    });
+
+    await resetRequest.save();
+
+    res.status(201).json({
+      success: true,
+      message: 'Password reset request submitted. Please wait for admin approval.',
+      request: {
+        id: resetRequest._id,
+        status: resetRequest.status,
+        createdAt: resetRequest.createdAt
+      }
+    });
+  } catch (error) {
+    console.error('Submit public reset request error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to submit password reset request'
+    });
+  }
+};
 
 /**
  * Submit password reset request (Organizer)
@@ -158,6 +224,9 @@ const approveResetRequest = async (req, res) => {
     resetRequest.resolvedAt = new Date();
     await resetRequest.save();
 
+    // Send email with new password to organizer's contact email
+    await sendPasswordResetApprovedEmail(organizer, temporaryPassword);
+
     res.status(200).json({
       success: true,
       message: 'Password reset approved',
@@ -209,6 +278,9 @@ const rejectResetRequest = async (req, res) => {
     resetRequest.resolvedBy = adminId;
     resetRequest.resolvedAt = new Date();
     await resetRequest.save();
+
+    // Send email with rejection reason to organizer's contact email
+    await sendPasswordResetRejectedEmail(resetRequest.organizerId, resetRequest.adminComment);
 
     res.status(200).json({
       success: true,
@@ -263,6 +335,7 @@ const getOwnResetRequests = async (req, res) => {
 };
 
 module.exports = {
+  submitPublicResetRequest,
   submitResetRequest,
   getResetRequests,
   approveResetRequest,

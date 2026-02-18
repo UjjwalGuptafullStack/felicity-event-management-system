@@ -22,7 +22,7 @@ export function StatsCard({
 
   return (
     <motion.div
-      whileHover={{ y: -2, boxShadow: "0 10px 30px rgba(99, 102, 241, 0.1)" }}
+      whileHover={{ y: -2, boxShadow: "0 10px 30px rgba(27, 127, 95, 0.15)" }}
       className={`bg-gradient-to-br ${gradientClasses[gradient]} rounded-xl p-6 border border-border min-h-[120px]`}
     >
       <div className="flex items-start justify-between gap-4">

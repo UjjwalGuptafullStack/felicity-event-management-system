@@ -264,8 +264,8 @@
 }
 
 .error-message {
-  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
-  color: #991b1b;
+  background: rgba(239, 68, 68, 0.08);
+  color: #f87171;
   padding: 0.875rem 1rem;
   border-radius: 10px;
   margin-bottom: 1rem;
@@ -284,8 +284,8 @@
 }
 
 .success-message {
-  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
-  color: #065f46;
+  background: rgba(16, 185, 129, 0.08);
+  color: #34d399;
   padding: 0.875rem 1rem;
   border-radius: 10px;
   margin-bottom: 1rem;

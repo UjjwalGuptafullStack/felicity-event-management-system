@@ -18,6 +18,8 @@ const {
   getOrganizer,
   disableOrganizer,
   enableOrganizer,
+  deleteOrganizer,
+  getAdminStats,
   getAdminDashboard
 } = require('../controllers/adminController');
 
@@ -25,8 +27,9 @@ const {
 router.use(authenticate);
 router.use(requireAdmin());
 
-// Dashboard route
+// Dashboard and stats routes
 router.get('/dashboard', getAdminDashboard);
+router.get('/stats', getAdminStats);
 
 // Organizer management routes
 router.post('/organizers', createOrganizer);
@@ -34,5 +37,6 @@ router.get('/organizers', listOrganizers);
 router.get('/organizers/:id', getOrganizer);
 router.patch('/organizers/:id/disable', disableOrganizer);
 router.patch('/organizers/:id/enable', enableOrganizer);
+router.delete('/organizers/:id', deleteOrganizer);
 
 module.exports = router;

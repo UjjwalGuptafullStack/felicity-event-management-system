@@ -11,6 +11,10 @@ export const loginParticipant = (data) =>
 export const loginOrganizer = (data) => 
   api.post('/auth/organizer/login', data);
 
+// Organizer Password Reset (public)
+export const requestOrganizerPasswordReset = (data) =>
+  api.post('/password-reset/request', data);
+
 // Admin Login
 export const loginAdmin = (data) => 
   api.post('/auth/admin/login', data);

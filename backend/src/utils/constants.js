@@ -27,6 +27,14 @@ const EVENT_TYPES = {
   MERCHANDISE: 'merchandise'
 };
 
+// Event categories (multi-select)
+const EVENT_CATEGORIES = {
+  TECH: 'tech',
+  SPORTS: 'sports',
+  CULTURAL: 'cultural'
+  // Note: 'other' values are stored as custom strings
+};
+
 // Event status
 const EVENT_STATUS = {
   DRAFT: 'draft',
@@ -48,12 +56,21 @@ const REGISTRATION_STATUS = {
   REJECTED: 'rejected'
 };
 
+// Team status
+const TEAM_STATUS = {
+  FORMING: 'forming',
+  COMPLETE: 'complete',
+  CANCELLED: 'cancelled'
+};
+
 module.exports = {
   ACTOR_TYPES,
   USER_ROLES,
   PARTICIPANT_TYPES,
   EVENT_TYPES,
+  EVENT_CATEGORIES,
   EVENT_STATUS,
   REGISTRATION_TYPES,
-  REGISTRATION_STATUS
+  REGISTRATION_STATUS,
+  TEAM_STATUS
 };

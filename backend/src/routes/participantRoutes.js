@@ -28,6 +28,14 @@ const {
   listOrganizers,
   getOrganizerDetails
 } = require('../controllers/organizerDiscoveryController');
+const {
+  createTeam,
+  joinTeamByCode,
+  getMyTeams,
+  getTeamDetail,
+  cancelTeam,
+  leaveTeam
+} = require('../controllers/teamController');
 
 // All participant routes require authentication + participant role
 router.use(authenticate);
@@ -56,5 +64,13 @@ router.get('/organizers/:id', getOrganizerDetails);
 // Organizer follow routes
 router.post('/organizers/:id/follow', followOrganizer);
 router.post('/organizers/:id/unfollow', unfollowOrganizer);
+
+// Team routes
+router.post('/events/:eventId/teams', createTeam);
+router.post('/teams/join', joinTeamByCode);
+router.get('/me/teams', getMyTeams);
+router.get('/teams/:teamId', getTeamDetail);
+router.delete('/teams/:teamId', cancelTeam);
+router.post('/teams/:teamId/leave', leaveTeam);
 
 module.exports = router;

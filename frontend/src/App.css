@@ -49,7 +49,7 @@ html, body, #root {
 }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: 'Consolas', 'Courier New', monospace;
   background: radial-gradient(circle at top, #121b17 0%, #0b0f0d 45%, #060807 100%);
   color: var(--text-primary);
   line-height: 1.6;

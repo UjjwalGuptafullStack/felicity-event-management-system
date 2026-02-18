@@ -1,6 +1,10 @@
 /**
  * Authentication Controller
  * Handles registration and login for all actor types
+ * 
+ * IMPORTANT: Admin accounts can ONLY be created via bootstrap (environment variables).
+ * There is NO API endpoint for admin registration for security reasons.
+ * Only participants can self-register via API.
  */
 
 const User = require('../models/User');
@@ -95,7 +99,8 @@ const registerParticipant = async (req, res) => {
         lastName: user.lastName,
         email: user.email,
         role: user.role,
-        participantType: user.participantType
+        participantType: user.participantType,
+        onboardingCompleted: false
       }
     });
   } catch (error) {
@@ -158,7 +163,8 @@ const loginParticipant = async (req, res) => {
         lastName: user.lastName,
         email: user.email,
         role: user.role,
-        participantType: user.participantType
+        participantType: user.participantType,
+        onboardingCompleted: user.onboardingCompleted || false
       }
     });
   } catch (error) {

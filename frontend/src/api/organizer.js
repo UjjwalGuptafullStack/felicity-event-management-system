@@ -45,9 +45,15 @@ export const updateOrganizerProfile = (data) =>
 // Additional Part 2 APIs
 export const getOrganizerEvents = () => api.get('/organizer/events');
 
+export const getOrganizerEvent = (eventId) => api.get(`/organizer/events/${eventId}`);
+
+export const getEventRegistrations = (eventId) => api.get(`/organizer/events/${eventId}/registrations`);
+
 export const getOrganizerStats = () => api.get('/organizer/stats');
 
 export const createEvent = (data) => api.post('/organizer/events', data);
+
+export const publishEvent = (eventId) => api.post(`/organizer/events/${eventId}/publish`);
 
 export const getPendingMerchandise = () => api.get('/part2/merchandise/pending');
 
@@ -57,14 +63,15 @@ export const approveMerchandise = (purchaseId) =>
 export const rejectMerchandise = (purchaseId) => 
   api.put(`/part2/merchandise/${purchaseId}/reject`);
 
+// Correct attendance API calls (aliases for backward compat)
 export const scanQRAttendance = (eventId, qrCode) => 
-  api.post(`/part2/attendance/${eventId}/scan`, { qrCode });
+  api.post(`/organizer/events/${eventId}/attendance/scan`, { qrCode });
 
-export const markManualAttendance = (eventId, participantId) =>
-  api.post(`/part2/attendance/${eventId}/manual`, { participantId });
+export const markManualAttendance = (eventId, participantEmail, remarks = '') =>
+  api.post(`/organizer/events/${eventId}/attendance/manual`, { participantEmail, remarks });
 
 export const getEventAttendance = (eventId) => 
-  api.get(`/part2/attendance/${eventId}`);
+  api.get(`/organizer/events/${eventId}/attendance`);
 
 export const exportAttendance = (eventId) => 
-  api.get(`/part2/attendance/${eventId}/export`, { responseType: 'blob' });
+  api.get(`/organizer/events/${eventId}/attendance/export`, { responseType: 'blob' });

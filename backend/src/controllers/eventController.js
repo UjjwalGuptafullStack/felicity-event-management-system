@@ -6,7 +6,7 @@
  */
 
 const Event = require('../models/Event');
-const { EVENT_STATUS, EVENT_TYPES } = require('../utils/constants');
+const { EVENT_STATUS, EVENT_TYPES, EVENT_CATEGORIES } = require('../utils/constants');
 const { ownsEvent, ownershipDenied } = require('../utils/accessControl');
 
 /**
@@ -46,13 +46,15 @@ const createEvent = async (req, res) => {
       name,
       description,
       type,
+      categories,
       eligibility,
       registrationDeadline,
       startDate,
       endDate,
       registrationLimit,
       registrationFee,
-      tags
+      tags,
+      teamRegistration
     } = req.body;
 
     // Required field validation
@@ -96,11 +98,20 @@ const createEvent = async (req, res) => {
       });
     }
 
+    // Categories validation (optional, but if provided must be valid)
+    let processedCategories = [];
+    if (categories && Array.isArray(categories)) {
+      processedCategories = categories
+        .map(cat => cat.trim().toLowerCase())
+        .filter(cat => cat.length > 0);
+    }
+
     // Create event as draft
     const event = new Event({
       name,
       description,
       type,
+      categories: processedCategories,
       eligibility,
       registrationDeadline,
       startDate,
@@ -108,6 +119,13 @@ const createEvent = async (req, res) => {
       registrationLimit,
       registrationFee: registrationFee || 0,
       organizerId: req.actor.id,
+      teamRegistration: teamRegistration
+        ? {
+            enabled: !!teamRegistration.enabled,
+            minSize: Math.max(2, parseInt(teamRegistration.minSize) || 2),
+            maxSize: Math.max(2, parseInt(teamRegistration.maxSize) || 5)
+          }
+        : { enabled: false, minSize: 2, maxSize: 5 },
       tags: tags || [],
       status: EVENT_STATUS.DRAFT
     });
@@ -161,6 +179,7 @@ const listOwnEvents = async (req, res) => {
       count: events.length,
       events: events.map(event => ({
         id: event._id,
+        _id: event._id,
         name: event.name,
         type: event.type,
         status: event.status,
@@ -170,6 +189,7 @@ const listOwnEvents = async (req, res) => {
         registrationLimit: event.registrationLimit,
         registrationFee: event.registrationFee,
         tags: event.tags,
+        teamRegistration: event.teamRegistration || { enabled: false, minSize: 2, maxSize: 5 },
         createdAt: event.createdAt
       }))
     });
@@ -218,6 +238,7 @@ const getOwnEvent = async (req, res) => {
         organizerId: event.organizerId,
         tags: event.tags,
         status: event.status,
+        teamRegistration: event.teamRegistration || { enabled: false, minSize: 2, maxSize: 5 },
         createdAt: event.createdAt
       }
     });
@@ -262,6 +283,7 @@ const updateEvent = async (req, res) => {
       name,
       description,
       type,
+      categories,
       eligibility,
       registrationDeadline,
       startDate,
@@ -284,6 +306,13 @@ const updateEvent = async (req, res) => {
       event.type = type;
     }
     if (eligibility !== undefined) event.eligibility = eligibility;
+    if (categories !== undefined) {
+      if (Array.isArray(categories)) {
+        event.categories = categories
+          .map(cat => cat.trim().toLowerCase())
+          .filter(cat => cat.length > 0);
+      }
+    }
     if (registrationDeadline !== undefined) event.registrationDeadline = registrationDeadline;
     if (startDate !== undefined) event.startDate = startDate;
     if (endDate !== undefined) event.endDate = endDate;

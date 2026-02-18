@@ -24,6 +24,10 @@ export const disableOrganizer = (id) =>
 export const enableOrganizer = (id) => 
   api.patch(`/admin/organizers/${id}/enable`);
 
+// Delete organizer permanently
+export const deleteOrganizer = (id) =>
+  api.delete(`/admin/organizers/${id}`);
+
 // Get password reset requests
 export const getPasswordResetRequests = (params) => 
   api.get('/admin/password-reset/requests', { params });
@@ -41,11 +45,12 @@ export const approveOrganizer = (organizerId) =>
 export const suspendOrganizer = (organizerId) =>
   api.put(`/admin/organizers/${organizerId}/suspend`);
 
+// Password Reset Requests for Organizers
 export const getPendingPasswordResets = () => 
-  api.get('/part2/password-reset/pending');
+  api.get('/admin/password-reset/requests', { params: { status: 'pending' } });
 
 export const approvePasswordReset = (requestId) =>
-  api.put(`/part2/password-reset/${requestId}/approve`);
+  api.post(`/admin/password-reset/${requestId}/approve`);
 
-export const rejectPasswordReset = (requestId) =>
-  api.put(`/part2/password-reset/${requestId}/reject`);
+export const rejectPasswordReset = (requestId, adminComment) =>
+  api.post(`/admin/password-reset/${requestId}/reject`, { adminComment });

@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { EVENT_TYPES, EVENT_STATUS } = require('../utils/constants');
+const { EVENT_TYPES, EVENT_CATEGORIES, EVENT_STATUS } = require('../utils/constants');
 
 const eventSchema = new mongoose.Schema({
   name: {
@@ -15,6 +15,21 @@ const eventSchema = new mongoose.Schema({
     type: String,
     enum: Object.values(EVENT_TYPES),
     required: true
+  },
+  categories: {
+    type: [String],
+    default: [],
+    validate: {
+      validator: function(categories) {
+        if (!categories || categories.length === 0) return true;
+        // Allow predefined categories and custom strings (for "Other")
+        return categories.every(cat => 
+          Object.values(EVENT_CATEGORIES).includes(cat.toLowerCase()) || 
+          cat.trim().length > 0
+        );
+      },
+      message: 'Invalid category value'
+    }
   },
   eligibility: {
     type: String,
@@ -68,6 +83,11 @@ const eventSchema = new mongoose.Schema({
   },
   customFormSchema: {
     type: mongoose.Schema.Types.Mixed
+  },
+  teamRegistration: {
+    enabled: { type: Boolean, default: false },
+    minSize:  { type: Number, default: 2, min: 2 },
+    maxSize:  { type: Number, default: 5, min: 2, max: 20 }
   },
   createdAt: {
     type: Date,

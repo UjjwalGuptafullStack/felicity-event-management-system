@@ -14,7 +14,7 @@ export function EventCard({
 }) {
   return (
     <motion.div
-      whileHover={{ y: -4, boxShadow: "0 20px 40px rgba(99, 102, 241, 0.15)" }}
+      whileHover={{ y: -4, boxShadow: "0 20px 40px rgba(27, 127, 95, 0.18)" }}
       transition={{ duration: 0.2 }}
       onClick={onClick}
       className="bg-card rounded-xl overflow-hidden cursor-pointer border border-border group"
