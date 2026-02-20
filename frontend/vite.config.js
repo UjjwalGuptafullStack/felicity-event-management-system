@@ -11,4 +11,17 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'socket-vendor': ['socket.io-client'],
+          'qr-vendor': ['html5-qrcode'],
+          'motion-vendor': ['motion'],
+          'ui-vendor': ['lucide-react'],
+        },
+      },
+    },
+  },
 })
