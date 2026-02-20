@@ -35,10 +35,12 @@ Felicity EMS is a full-stack event management platform that supports three disti
 | Attendance tracking | Full dashboard, duplicate prevention, audit-logged manual override, CSV export |
 | Merchandise workflow | Purchase → Payment proof upload → Organizer approval/rejection → Stock deduction |
 | Team registration | Create teams with invite codes; team captain leads the group registration |
+| Team chat | Real-time Socket.io chat per team (when complete): file sharing, typing indicator, online presence |
 | Password reset | Organizer-initiated request → Admin approve/reject with email notification |
-| Discussion forum | Per-event message board with pin, announce, and delete moderation |
-| Feedback system | Post-event star ratings + comments; aggregate stats for organizers |
+| Discussion forum | Per-event message board with anonymous participants, pin/announce/delete moderation |
+| Feedback system | Post-event star ratings + comments; anonymous aggregate stats + CSV export for organizers |
 | Organizer discovery | Participants can browse and follow clubs/organizers |
+| Recommended events | Events matching user interests float to top of Browse Events |
 
 ---
 
@@ -53,6 +55,9 @@ Felicity EMS is a full-stack event management platform that supports three disti
 | Auth | JSON Web Tokens (jsonwebtoken) | 9.0 |
 | Password hashing | bcrypt | 5.1 |
 | Email | Nodemailer (Ethereal fallback / Gmail SMTP) | 8.0 |
+| Real-time | socket.io | 4.8 |
+| File upload | multer | 2.x |
+| QR generation | qrcode | 1.5 |
 | Environment | dotenv | 16.4 |
 | Dev server | nodemon | 3.0 |
 
@@ -84,30 +89,40 @@ felicity-event-management-system/
 │       │   ├── db.js           # MongoDB Atlas connection
 │       │   └── env.js          # Centralised env config object
 │       ├── controllers/        # Business logic, one file per feature domain
+│       │   └── chatController.js       # Chat message retrieval + file upload
 │       ├── middleware/
-│       │   └── authContracts.js # JWT decode + role guards
+│       │   └── authContracts.js        # JWT decode + role guards
 │       ├── models/             # Mongoose schemas
+│       │   └── ChatMessage.js          # Team chat message persistence
 │       ├── routes/             # Express routers grouped by actor
+│       │   └── chatRoutes.js           # GET messages + POST file upload
+│       ├── sockets/
+│       │   └── teamChat.js             # Socket.io setup (rooms, presence, events)
 │       └── utils/
 │           ├── accessControl.js
-│           ├── authHelpers.js  # bcrypt helpers
-│           ├── bootstrap.js    # Admin seed on first start
-│           ├── constants.js    # System-wide enums
-│           └── emailService.js # Nodemailer wrapper
+│           ├── authHelpers.js          # bcrypt helpers
+│           ├── bootstrap.js            # Admin seed on first start
+│           ├── constants.js            # System-wide enums
+│           └── emailService.js         # Nodemailer wrapper
 └── frontend/
     ├── index.html
     ├── vite.config.js
     └── src/
         ├── App.jsx             # Route definitions
         ├── api/                # Axios API call wrappers (one per domain)
+        │   └── chat.js                 # getChatMessages, uploadChatFile
         ├── auth/
         ├── components/         # Reusable UI (nav bars, design system)
         ├── context/
-        │   └── AuthContext.jsx # Global auth state (JWT decode, login/logout)
+        │   └── AuthContext.jsx         # Global auth state (JWT decode, login/logout)
         ├── layouts/            # OrganizerLayout, ParticipantLayout (with nested Outlet)
         ├── pages/              # One folder per actor role
+        │   ├── participant/
+        │   │   ├── TeamChat.jsx        # Real-time team chat UI
+        │   │   └── EventDiscussion.jsx # Event discussion forum (anonymous)
         ├── routes/             # ProtectedRoute, RoleRoute guards
         ├── sockets/
+        │   └── socket.js               # Singleton Socket.io-client with JWT auth
         └── styles/             # theme.css, tailwind.css, fonts.css
 ```
 
@@ -567,6 +582,8 @@ Organizer submits reason → Admin sees pending requests
 - Organizers can post **announcements** (tagged differently)
 - Organizers can **delete** any inappropriate message
 - Organizers can **unpin** messages
+- Participant identities shown as **"Anonymous"** in the participant-facing UI (privacy by design)
+- Organizer messages are highlighted with a distinct avatar badge
 
 **Endpoints:**
 - `POST /events/:id/discussion/messages` — Post message (any authenticated actor)
@@ -576,19 +593,69 @@ Organizer submits reason → Admin sees pending requests
 - `DELETE /organizer/events/:id/discussion/messages/:messageId`
 - `POST /organizer/events/:id/discussion/announcement` — Post announcement
 
+**Frontend:**
+- `EventDiscussion.jsx` (`/participant/events/:id/discussion`) — full discussion page accessible from EventDetails with anonymous participant display, Enter-to-send, 2000-char limit
+- Organizer panel inside `EventDetail.jsx` — post announcement, pin/unpin/delete per message
+
 ### 8.5 Post-Event Feedback & Ratings (Tier C1 – 4 Marks)
 
 **Purpose:** Collect structured participant feedback for organizer review.
 
 **Features:**
-- **1–5 star rating** + optional text comment
+- **1–5 star rating** + optional text comment (1000 char limit)
+- Gated on attendance: participant must have an `Attendance` record (must have physically attended)
 - One submission per participant per event (unique index)
-- Organizers see aggregated stats (average rating, total count, rating distribution)
+- Organizers see aggregated stats: average rating, distribution bars (5★→1★), rating filter
+- Anonymous CSV export (participant IDs excluded)
 
 **Endpoints:**
-- `POST /participant/events/:id/feedback` — Submit `{ rating, comment }`. Validates 1–5 range.
-- `GET /organizer/events/:id/feedback` — All feedback records with participant names.
+- `POST /participant/events/:id/feedback` — Submit `{ rating, comment }`. Validates attendance.
+- `GET /participant/events/:id/feedback/my` — Participant checks own submission + eligibility.
+- `GET /organizer/events/:id/feedback` — All feedback records (anonymous, with optional `?rating=` filter).
 - `GET /organizer/events/:id/feedback/stats` — `{ averageRating, totalCount, distribution: { 1:n, 2:n, … } }`
+- `GET /organizer/events/:id/feedback/export` — Streams anonymous CSV.
+
+**Frontend:**
+- Participant `EventDetails.jsx` — 5-star hover picker + comment form, shown only if event ended and user attended. Confirmed state on submission.
+- Organizer `EventDetail.jsx` — feedback analytics panel with avg rating, distribution bars, filter buttons, scrollable comment list, Export CSV button.
+
+### 8.6 Real-Time Team Chat (Socket.io)
+
+**Purpose:** Persistent real-time chat for each complete team.
+
+**Architecture:**
+- Socket.io mounted on the same HTTP port as Express (`http.createServer(app)`)
+- JWT authenticated at socket handshake; user name resolved from DB
+- Each team gets a room: `team-<teamId>`
+- Messages persisted to `ChatMessage` collection in MongoDB
+- File uploads via REST: `POST /chat/team/:teamId/upload` (multer, 10 MB limit)
+
+**Socket Events:**
+
+| Direction | Event | Payload |
+|---|---|---|
+| Client → Server | `join-team` | `{ teamId }` |
+| Client → Server | `send-message` | `{ teamId, content }` |
+| Client → Server | `send-file-message` | `{ teamId, fileUrl, fileName, fileType }` |
+| Client → Server | `typing` / `stop-typing` | `{ teamId }` |
+| Server → Room | `new-message` | full ChatMessage doc |
+| Server → Room | `user-typing` / `user-stop-typing` | `{ userId, userName }` |
+| Server → Room | `team-presence` | `{ onlineMembers }` |
+
+**REST Endpoints:**
+- `GET /chat/team/:teamId/messages?before=<ISO>&limit=20` — paginated history
+- `POST /chat/team/:teamId/upload` — file upload, returns `{ fileUrl, fileName, fileType }`
+
+**Frontend (`TeamChat.jsx`, route `/participant/teams/:teamId/chat`):**
+- Message bubbles (own = right/primary, others = left/muted)
+- Inline image preview; download links for other file types
+- URL linkification in text messages
+- Animated 3-dot typing indicator
+- Online members panel with green presence dots
+- Connection status indicator
+- Cursor-based "Load More" pagination
+- Auto-resize textarea; Enter to send, Shift+Enter for newline
+- "Open Chat" button on Teams page for complete teams
 
 ---
 
@@ -662,8 +729,9 @@ All responses follow:
 | POST | `/organizer/events/:id/discussion/messages/:msgId/pin` | Pin message |
 | POST | `/organizer/events/:id/discussion/messages/:msgId/unpin` | Unpin message |
 | DELETE | `/organizer/events/:id/discussion/messages/:msgId` | Delete message |
-| GET | `/organizer/events/:id/feedback` | All feedback |
+| GET | `/organizer/events/:id/feedback` | All feedback (optional `?rating=` filter) |
 | GET | `/organizer/events/:id/feedback/stats` | Aggregated stats |
+| GET | `/organizer/events/:id/feedback/export` | Export anonymous CSV |
 
 #### Participant (requires participant JWT)
 | Method | Path | Description |
@@ -686,7 +754,10 @@ All responses follow:
 | GET | `/participant/teams/:teamId` | Team details |
 | DELETE | `/participant/teams/:teamId` | Cancel team (captain) |
 | POST | `/participant/teams/:teamId/leave` | Leave team |
-| POST | `/participant/events/:id/feedback` | Submit feedback |
+| POST | `/participant/events/:id/feedback` | Submit feedback (attendance required) |
+| GET | `/participant/events/:id/feedback/my` | My feedback + eligibility check |
+| GET | `/chat/team/:teamId/messages` | Paginated chat history (`?before=` cursor) |
+| POST | `/chat/team/:teamId/upload` | Upload chat file (multipart, 10 MB max) |
 
 #### Shared (any authenticated actor)
 | Method | Path | Description |
@@ -718,14 +789,16 @@ All responses follow:
 | `Profile.jsx` | `/participant/profile` | Profile edit form |
 | `Organizers.jsx` | `/participant/organizers` | Browse + follow clubs |
 | `OrganizerDetail.jsx` | `/participant/organizers/:id` | Organizer profile + their events |
-| `Teams.jsx` | `/participant/teams` | My teams management |
+| `Teams.jsx` | `/participant/teams` | My teams management; "Open Chat" button for complete teams |
+| `TeamChat.jsx` | `/participant/teams/:teamId/chat` | Real-time Socket.io team chat with file sharing and presence |
+| `EventDiscussion.jsx` | `/participant/events/:id/discussion` | Anonymous discussion forum for event participants |
 
 ### Organizer Pages (under `/organizer/*`)
 | Page | Route | Description |
 |---|---|---|
 | `Dashboard.jsx` | `/organizer/dashboard` | Stats overview, recent registrations |
 | `Events.jsx` | `/organizer/events` | Event list with status badges |
-| `EventDetail.jsx` | `/organizer/events/:id/detail` | Full event view + publish + registrations table |
+| `EventDetail.jsx` | `/organizer/events/:id/detail` | Full event view + publish + registrations + discussion moderation panel + feedback analytics panel |
 | `AttendanceScanner.jsx` | `/organizer/attendance/:eventId` | 4-tab QR scanner + attendance dashboard |
 | `MerchandiseApprovals.jsx` | `/organizer/merchandise-approvals` | Pending merchandise payments |
 | `Profile.jsx` | `/organizer/profile` | Organizer profile editor |
@@ -760,11 +833,12 @@ Each file wraps Axios calls for a specific domain. The shared `axios.js` instanc
 | File | Domain |
 |---|---|
 | `auth.js` | Login, register |
-| `participant.js` | Events, registrations, teams, organizers, feedback |
-| `organizer.js` | Events, attendance, merchandise, password reset |
+| `participant.js` | Events, registrations, teams, organizers, feedback, my-feedback |
+| `organizer.js` | Events, attendance, merchandise, password reset, feedback analytics, CSV export |
 | `admin.js` | Organizer CRUD, password reset management |
 | `events.js` | Public event browsing |
-| `discussion.js` | Discussion messages |
+| `discussion.js` | Discussion messages (post, pin, announce, delete) |
+| `chat.js` | Team chat history + file upload |
 | `public.js` | Public stats |
 
 ---

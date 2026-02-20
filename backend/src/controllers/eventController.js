@@ -271,11 +271,11 @@ const updateEvent = async (req, res) => {
       return res.status(403).json(ownershipDenied());
     }
 
-    // Can only edit draft events
-    if (event.status !== EVENT_STATUS.DRAFT) {
+    // Can only edit draft or published events
+    if (![EVENT_STATUS.DRAFT, EVENT_STATUS.PUBLISHED].includes(event.status)) {
       return res.status(400).json({
         success: false,
-        message: 'Only draft events can be edited'
+        message: 'Ongoing or completed events cannot be edited'
       });
     }
 
@@ -290,8 +290,47 @@ const updateEvent = async (req, res) => {
       endDate,
       registrationLimit,
       registrationFee,
-      tags
+      tags,
+      teamRegistration
     } = req.body;
+
+    // PUBLISHED: only limited fields allowed
+    if (event.status === EVENT_STATUS.PUBLISHED) {
+      if (description !== undefined) event.description = description;
+      if (tags !== undefined) event.tags = tags;
+
+      if (registrationDeadline !== undefined) {
+        const newDeadline = new Date(registrationDeadline);
+        const currentDeadline = new Date(event.registrationDeadline);
+        if (newDeadline <= currentDeadline) {
+          return res.status(400).json({
+            success: false,
+            message: 'For published events you can only extend the registration deadline (new date must be after current)'
+          });
+        }
+        event.registrationDeadline = registrationDeadline;
+      }
+
+      if (registrationLimit !== undefined) {
+        const newLimit = parseInt(registrationLimit);
+        if (event.registrationLimit && newLimit <= event.registrationLimit) {
+          return res.status(400).json({
+            success: false,
+            message: 'For published events you can only increase the registration limit'
+          });
+        }
+        event.registrationLimit = newLimit;
+      }
+
+      await event.save();
+      return res.status(200).json({
+        success: true,
+        message: 'Event updated successfully',
+        event: { id: event._id, name: event.name, type: event.type, status: event.status }
+      });
+    }
+
+    // DRAFT: all fields allowed
 
     // Update fields if provided
     if (name !== undefined) event.name = name;
@@ -335,6 +374,13 @@ const updateEvent = async (req, res) => {
       event.registrationFee = registrationFee;
     }
     if (tags !== undefined) event.tags = tags;
+    if (teamRegistration !== undefined) {
+      event.teamRegistration = {
+        enabled: !!teamRegistration.enabled,
+        minSize: Math.max(2, parseInt(teamRegistration.minSize) || 2),
+        maxSize: Math.max(2, parseInt(teamRegistration.maxSize) || 5)
+      };
+    }
 
     // Validate dates if any date field was updated
     if (registrationDeadline !== undefined || startDate !== undefined || endDate !== undefined) {
@@ -451,40 +497,32 @@ const publishEvent = async (req, res) => {
 };
 
 /**
- * View registrations for own event
+ * View registrations for own event (with attendance info)
  * GET /organizer/events/:id/registrations
- * 
- * Organizer can see who registered for their events
- * Read-only view with participant details
  */
 const viewEventRegistrations = async (req, res) => {
   try {
     const event = await Event.findById(req.params.id);
+    if (!event) return res.status(404).json({ success: false, message: 'Event not found' });
+    if (!ownsEvent(req.actor, event)) return res.status(403).json(ownershipDenied());
 
-    if (!event) {
-      return res.status(404).json({
-        success: false,
-        message: 'Event not found'
-      });
-    }
-
-    // Ownership check - organizer can only view their own events
-    if (!ownsEvent(req.actor, event)) {
-      return res.status(403).json(ownershipDenied());
-    }
-
-    // Fetch registrations for this event
     const Registration = require('../models/Registration');
-    const User = require('../models/User');
+    const Attendance = require('../models/Attendance');
 
     const registrations = await Registration.find({ eventId: event._id })
       .populate('participantId', 'firstName lastName email contactNumber participantType')
       .sort({ createdAt: -1 });
 
-    // Format response
+    // Fetch attendance records indexed by registrationId
+    const attendanceRecords = await Attendance.find({ eventId: event._id });
+    const attendanceMap = {};
+    for (const a of attendanceRecords) {
+      attendanceMap[a.registrationId.toString()] = a;
+    }
+
     const formattedRegistrations = registrations.map(reg => {
       const participant = reg.participantId;
-      
+      const attendance = attendanceMap[reg._id.toString()];
       return {
         registrationId: reg._id,
         participant: participant ? {
@@ -495,38 +533,97 @@ const viewEventRegistrations = async (req, res) => {
         } : null,
         registeredAt: reg.createdAt,
         status: reg.status,
-        registrationType: reg.registrationType
+        registrationType: reg.registrationType,
+        paymentStatus: reg.paymentStatus,
+        totalAmount: reg.totalAmount || 0,
+        attended: !!attendance,
+        attendedAt: attendance?.scannedAt || null
       };
     });
 
     res.status(200).json({
       success: true,
-      event: {
-        id: event._id,
-        name: event.name,
-        type: event.type,
-        status: event.status
-      },
+      event: { id: event._id, name: event.name, type: event.type, status: event.status },
       count: formattedRegistrations.length,
       registrations: formattedRegistrations
     });
   } catch (error) {
     console.error('View event registrations error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to retrieve registrations'
+    res.status(500).json({ success: false, message: 'Failed to retrieve registrations' });
+  }
+};
+
+/**
+ * Close registrations for a published/ongoing event
+ * POST /organizer/events/:id/close-registrations
+ */
+const closeEventRegistrations = async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.id);
+    if (!event) return res.status(404).json({ success: false, message: 'Event not found' });
+    if (!ownsEvent(req.actor, event)) return res.status(403).json(ownershipDenied());
+    if (!['published', 'ongoing'].includes(event.status)) {
+      return res.status(400).json({ success: false, message: 'Can only close registrations for published or ongoing events' });
+    }
+    // Set deadline to now to close registrations
+    event.registrationDeadline = new Date();
+    await event.save();
+    res.status(200).json({ success: true, message: 'Registrations closed successfully' });
+  } catch (error) {
+    console.error('Close registrations error:', error);
+    res.status(500).json({ success: false, message: 'Failed to close registrations' });
+  }
+};
+
+/**
+ * Get analytics for an event
+ * GET /organizer/events/:id/analytics
+ */
+const getEventAnalytics = async (req, res) => {
+  try {
+    const Registration = require('../models/Registration');
+    const Attendance = require('../models/Attendance');
+    const { REGISTRATION_STATUS } = require('../utils/constants');
+
+    const event = await Event.findById(req.params.id);
+    if (!event) return res.status(404).json({ success: false, message: 'Event not found' });
+    if (!ownsEvent(req.actor, event)) return res.status(403).json(ownershipDenied());
+
+    const [registrations, attendanceCount] = await Promise.all([
+      Registration.find({ eventId: event._id, status: REGISTRATION_STATUS.REGISTERED }),
+      Attendance.countDocuments({ eventId: event._id })
+    ]);
+
+    const registrationCount = registrations.length;
+    const revenue = registrations.reduce((sum, r) => sum + (r.totalAmount || 0), 0) ||
+      (registrationCount * (event.registrationFee || 0));
+
+    res.status(200).json({
+      success: true,
+      analytics: {
+        registrations: registrationCount,
+        attendance: attendanceCount,
+        revenue,
+        capacity: event.registrationLimit || null,
+        fillRate: event.registrationLimit
+          ? +((registrationCount / event.registrationLimit) * 100).toFixed(1)
+          : null,
+        attendanceRate: registrationCount > 0
+          ? +((attendanceCount / registrationCount) * 100).toFixed(1)
+          : 0,
+        registrationFee: event.registrationFee || 0,
+        teamRegistrationEnabled: event.teamRegistration?.enabled || false
+      }
     });
+  } catch (error) {
+    console.error('Get event analytics error:', error);
+    res.status(500).json({ success: false, message: 'Failed to get analytics' });
   }
 };
 
 /**
  * Get organizer dashboard
  * GET /organizer/dashboard
- * 
- * Returns:
- * - List of events with status
- * - Registration counts per event
- * - Revenue calculations
  */
 const getOrganizerDashboard = async (req, res) => {
   try {

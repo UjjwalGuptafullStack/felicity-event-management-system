@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   UsersRound, Loader2, AlertCircle, BadgeCheck, Copy, Check,
-  LogIn, X, Trash2, LogOut, RefreshCw, Plus, Calendar
+  LogIn, X, Trash2, LogOut, RefreshCw, Plus, Calendar, MessageSquare
 } from 'lucide-react';
 import { getMyTeams, getTeamDetail, cancelTeam, leaveTeam, joinTeamByCode } from '../../api/participant';
 
@@ -81,7 +81,7 @@ function JoinModal({ onClose, onJoined }) {
             onChange={e => setCode(e.target.value.toUpperCase())}
             placeholder="6-char code  e.g. A1B2C3"
             maxLength={6}
-            className="w-full rounded-lg border border-border bg-card px-4 py-3 text-foreground placeholder-foreground-dim focus:outline-none focus:ring-2 focus:ring-accent/40 text-sm tracking-widest font-mono text-center uppercase"
+            className="w-full rounded-lg border border-input-border bg-input-background px-4 py-3 text-input-foreground placeholder:text-input-placeholder focus:outline-none focus:ring-2 focus:ring-accent/40 text-sm tracking-widest font-mono text-center uppercase"
           />
           <button type="submit" disabled={loading}
             className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-blue-700 hover:bg-blue-600 disabled:opacity-50 text-white font-semibold text-sm transition-colors">
@@ -241,6 +241,16 @@ function TeamCard({ team: summary, onRefresh, currentUserId }) {
 
           {/* Actions */}
           <div className="flex flex-wrap gap-2 pt-1">
+            {/* Chat button — only for complete teams */}
+            {t.status === 'complete' && (
+              <button
+                onClick={() => navigate(`/participant/teams/${summary.id}/chat`)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary/10 border border-primary/20 text-primary hover:bg-primary/20 text-xs font-semibold transition-colors"
+              >
+                <MessageSquare className="w-3.5 h-3.5" />
+                Open Chat
+              </button>
+            )}
             {isForming && isLeader && (
               <button
                 onClick={handleCancel}

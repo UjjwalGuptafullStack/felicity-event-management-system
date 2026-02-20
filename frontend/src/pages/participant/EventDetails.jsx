@@ -2,13 +2,15 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Calendar, Users, Clock, Tag, ArrowLeft, Loader2, AlertCircle,
-  BadgeCheck, Copy, Check, Share2, UserPlus, Plus, LogIn, X, UsersRound
+  BadgeCheck, Copy, Check, Share2, UserPlus, Plus, LogIn, X, UsersRound, Star, MessageSquare
 } from 'lucide-react';
 import { getEventById } from '../../api/events';
 import {
   registerForEvent,
   createTeam,
-  joinTeamByCode
+  joinTeamByCode,
+  submitFeedback,
+  getMyFeedback
 } from '../../api/participant';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -87,7 +89,7 @@ function CreateTeamModal({ event, onClose, onCreate }) {
           <div>
             <label className="block text-sm font-medium text-muted-foreground mb-2">Team Name</label>
             <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. ByteForce" maxLength={60}
-              className="w-full rounded-lg border border-border bg-card px-4 py-3 text-foreground placeholder-foreground-dim focus:outline-none focus:ring-2 focus:ring-accent/40 text-sm" />
+              className="w-full rounded-lg border border-input-border bg-input-background px-4 py-3 text-input-foreground placeholder:text-input-placeholder focus:outline-none focus:ring-2 focus:ring-accent/40 text-sm" />
           </div>
           <div>
             <label className="block text-sm font-medium text-muted-foreground mb-2">
@@ -146,7 +148,7 @@ function JoinTeamModal({ onClose, onJoined }) {
             <label className="block text-sm font-medium text-muted-foreground mb-2">6-character Invite Code</label>
             <input type="text" value={code} onChange={e => setCode(e.target.value.toUpperCase())}
               placeholder="A1B2C3" maxLength={6}
-              className="w-full rounded-lg border border-border bg-card px-4 py-3 text-foreground placeholder-foreground-dim focus:outline-none focus:ring-2 focus:ring-accent/40 text-sm tracking-widest font-mono text-center uppercase" />
+              className="w-full rounded-lg border border-input-border bg-input-background px-4 py-3 text-input-foreground placeholder:text-input-placeholder focus:outline-none focus:ring-2 focus:ring-accent/40 text-sm tracking-widest font-mono text-center uppercase" />
           </div>
           <button type="submit" disabled={loading}
             className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-blue-700 hover:bg-blue-600 disabled:opacity-50 text-white font-semibold text-sm transition-colors">
@@ -211,16 +213,41 @@ export default function EventDetails() {
   const [myTeam,     setMyTeam]     = useState(null);
   const [regLoading, setRegLoading] = useState(false);
 
+  // Feedback state
+  const [feedbackStatus, setFeedbackStatus] = useState(null); // { eventEnded, attended, submitted, feedback }
+  const [fbRating,   setFbRating]   = useState(0);
+  const [fbHover,    setFbHover]    = useState(0);
+  const [fbComment,  setFbComment]  = useState('');
+  const [fbLoading,  setFbLoading]  = useState(false);
+  const [fbAlert,    setFbAlert]    = useState(null);
+
   useEffect(() => {
     (async () => {
       try {
         const res = await getEventById(id);
         setEvent(res.data.event);
+        // Fetch feedback status now that we know the event
+        try {
+          const fbRes = await getMyFeedback(id);
+          setFeedbackStatus(fbRes.data);
+        } catch { /* not logged in or other issue – swallow */ }
       } catch {
         setAlert({ type: 'error', text: 'Event not found.' });
       } finally { setLoading(false); }
     })();
   }, [id]);
+
+  const handleSubmitFeedback = async () => {
+    if (!fbRating) { setFbAlert({ type: 'error', text: 'Please select a star rating.' }); return; }
+    setFbLoading(true); setFbAlert(null);
+    try {
+      await submitFeedback(id, { rating: fbRating, comment: fbComment.trim() || undefined });
+      setFeedbackStatus(prev => ({ ...prev, submitted: true, feedback: { rating: fbRating, comment: fbComment, submittedAt: new Date() } }));
+      setFbAlert({ type: 'success', text: 'Thank you! Your feedback has been submitted.' });
+    } catch (err) {
+      setFbAlert({ type: 'error', text: err.response?.data?.message || 'Failed to submit feedback.' });
+    } finally { setFbLoading(false); }
+  };
 
   const handleSoloRegister = async () => {
     setRegLoading(true); setAlert(null);
@@ -331,11 +358,103 @@ export default function EventDetails() {
         {!isOpen && !myTeam && <Alert type="error">Registration is closed for this event.</Alert>}
         {isFull && !myTeam  && <Alert type="error">This event has reached its registration limit.</Alert>}
 
+        {/* Discussion Forum link */}
+        <button
+          onClick={() => navigate(`/participant/events/${id}/discussion`)}
+          className="w-full flex items-center justify-between gap-3 p-4 bg-background-secondary border border-border rounded-2xl hover:border-accent/40 hover:bg-accent/5 transition-colors group"
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-accent/10 group-hover:bg-accent/20 transition-colors">
+              <MessageSquare className="w-4 h-4 text-accent" />
+            </div>
+            <div className="text-left">
+              <p className="text-sm font-semibold text-foreground">Event Discussion</p>
+              <p className="text-xs text-muted-foreground">Ask questions &amp; chat with other attendees anonymously</p>
+            </div>
+          </div>
+          <span className="text-muted-foreground text-sm">→</span>
+        </button>
+
         {event.tags?.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {event.tags.map(t => (
               <span key={t} className="text-xs px-3 py-1 rounded-full bg-muted border border-border text-muted-foreground">#{t}</span>
             ))}
+          </div>
+        )}
+
+        {/* ── Feedback Section ── */}
+        {feedbackStatus?.eventEnded && feedbackStatus?.attended && (
+          <div className="p-6 bg-background-secondary border border-border rounded-2xl space-y-4">
+            <h2 className="font-bold text-foreground text-lg flex items-center gap-2">
+              <MessageSquare className="w-5 h-5 text-accent" />
+              Leave Feedback
+            </h2>
+
+            {feedbackStatus.submitted ? (
+              <div className="flex items-start gap-3 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                <BadgeCheck className="w-5 h-5 text-emerald-400 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-emerald-400 font-medium text-sm">You rated this event {feedbackStatus.feedback?.rating} / 5 stars</p>
+                  {feedbackStatus.feedback?.comment && (
+                    <p className="text-muted-foreground text-sm mt-1 italic">"{feedbackStatus.feedback.comment}"</p>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {fbAlert && <Alert type={fbAlert.type}>{fbAlert.text}</Alert>}
+
+                {/* Star picker */}
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground mb-2 block">Rating *</label>
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4, 5].map(star => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setFbRating(star)}
+                        onMouseEnter={() => setFbHover(star)}
+                        onMouseLeave={() => setFbHover(0)}
+                        className="p-1 transition-transform hover:scale-110"
+                        aria-label={`Rate ${star} stars`}
+                      >
+                        <Star
+                          className={`w-8 h-8 transition-colors ${
+                            (fbHover || fbRating) >= star
+                              ? 'fill-yellow-400 text-yellow-400'
+                              : 'text-muted-foreground'
+                          }`}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Comment */}
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground mb-1 block">Comment (optional)</label>
+                  <textarea
+                    rows={3}
+                    value={fbComment}
+                    onChange={e => setFbComment(e.target.value)}
+                    placeholder="Share your experience…"
+                    maxLength={1000}
+                    className="w-full rounded-xl border border-input-border bg-input-background px-4 py-3 text-input-foreground placeholder:text-input-placeholder focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm resize-none"
+                  />
+                  <p className="text-xs text-muted-foreground text-right mt-1">{fbComment.length}/1000</p>
+                </div>
+
+                <button
+                  onClick={handleSubmitFeedback}
+                  disabled={fbLoading || !fbRating}
+                  className="flex items-center gap-2 px-6 py-3 rounded-xl bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white font-semibold text-sm transition-colors"
+                >
+                  {fbLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Star className="w-4 h-4" />}
+                  Submit Feedback
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

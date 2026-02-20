@@ -42,18 +42,35 @@ export const getOrganizerProfile = () =>
 export const updateOrganizerProfile = (data) => 
   api.patch('/organizer/profile', data);
 
+// Change organizer password via admin-approved request
+export const completePasswordChange = (requestId, newPassword) =>
+  api.post(`/organizer/password-reset/${requestId}/complete`, { newPassword });
+
 // Additional Part 2 APIs
 export const getOrganizerEvents = () => api.get('/organizer/events');
+
+export const getOrganizerDashboard = () => api.get('/organizer/dashboard');
 
 export const getOrganizerEvent = (eventId) => api.get(`/organizer/events/${eventId}`);
 
 export const getEventRegistrations = (eventId) => api.get(`/organizer/events/${eventId}/registrations`);
 
-export const getOrganizerStats = () => api.get('/organizer/stats');
-
 export const createEvent = (data) => api.post('/organizer/events', data);
 
+export const updateEvent = (eventId, data) => api.patch(`/organizer/events/${eventId}`, data);
+
 export const publishEvent = (eventId) => api.post(`/organizer/events/${eventId}/publish`);
+
+export const closeEventRegistrations = (eventId) => api.post(`/organizer/events/${eventId}/close-registrations`);
+
+export const getEventAnalytics = (eventId) => api.get(`/organizer/events/${eventId}/analytics`);
+
+export const getEventFeedback = (eventId) => api.get(`/organizer/events/${eventId}/feedback`);
+
+export const getEventFeedbackStats = (eventId) => api.get(`/organizer/events/${eventId}/feedback/stats`);
+
+export const exportFeedbackCSV = (eventId) =>
+  api.get(`/organizer/events/${eventId}/feedback/export`, { responseType: 'blob' });
 
 export const getPendingMerchandise = () => api.get('/part2/merchandise/pending');
 

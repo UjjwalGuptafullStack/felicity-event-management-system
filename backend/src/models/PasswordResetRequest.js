@@ -2,7 +2,13 @@ const mongoose = require('mongoose');
 
 /**
  * PasswordResetRequest Model
- * Tracks organizer password reset requests for admin approval
+ * Tracks organizer password reset requests for admin approval.
+ *
+ * Two request types:
+ *   'self_change'    - Organizer is logged in and wants to set their own new password.
+ *                      Admin approves → organizer enters new password → marked 'completed'.
+ *   'forgot_password' - Organizer cannot log in.
+ *                      Admin approves → admin generates a temp password → emailed to organizer.
  */
 const passwordResetRequestSchema = new mongoose.Schema({
   organizerId: {
@@ -16,9 +22,14 @@ const passwordResetRequestSchema = new mongoose.Schema({
     trim: true,
     maxlength: 500
   },
+  type: {
+    type: String,
+    enum: ['self_change', 'forgot_password'],
+    default: 'forgot_password'
+  },
   status: {
     type: String,
-    enum: ['pending', 'approved', 'rejected'],
+    enum: ['pending', 'approved', 'rejected', 'completed'],
     default: 'pending'
   },
   adminComment: {
@@ -42,6 +53,9 @@ const passwordResetRequestSchema = new mongoose.Schema({
   },
   resolvedAt: {
     type: Date
+  },
+  completedAt: {
+    type: Date
   }
 });
 
@@ -50,3 +64,4 @@ passwordResetRequestSchema.index({ organizerId: 1, status: 1 });
 passwordResetRequestSchema.index({ status: 1, createdAt: -1 });
 
 module.exports = mongoose.model('PasswordResetRequest', passwordResetRequestSchema);
+

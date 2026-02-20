@@ -7,6 +7,7 @@
 const Feedback = require('../models/Feedback');
 const Event = require('../models/Event');
 const Registration = require('../models/Registration');
+const Attendance = require('../models/Attendance');
 
 /**
  * Submit feedback for event
@@ -44,16 +45,16 @@ const submitFeedback = async (req, res) => {
       });
     }
 
-    // Verify participant is registered
-    const registration = await Registration.findOne({
+    // Verify participant attended the event (not just registered)
+    const attended = await Attendance.findOne({
       eventId,
       participantId
     });
 
-    if (!registration) {
+    if (!attended) {
       return res.status(403).json({
         success: false,
-        message: 'Only registered participants can submit feedback'
+        message: 'Only participants who attended the event can submit feedback'
       });
     }
 
@@ -243,8 +244,90 @@ const getFeedbackStats = async (req, res) => {
   }
 };
 
+/**
+ * Get my own feedback for an event (Participant)
+ * GET /participant/events/:id/feedback/my
+ * Returns: { submitted, attended, rating, comment } — anonymous to organizer but visible to self
+ */
+const getMyFeedback = async (req, res) => {
+  try {
+    const { id: eventId } = req.params;
+    const participantId = req.actor.id;
+
+    const event = await Event.findById(eventId);
+    if (!event) {
+      return res.status(404).json({ success: false, message: 'Event not found' });
+    }
+
+    const attended = await Attendance.findOne({ eventId, participantId });
+    const feedback = await Feedback.findOne({ eventId, participantId });
+
+    res.status(200).json({
+      success: true,
+      eventEnded: event.endDate < new Date(),
+      attended: !!attended,
+      submitted: !!feedback,
+      feedback: feedback
+        ? { rating: feedback.rating, comment: feedback.comment, submittedAt: feedback.submittedAt }
+        : null
+    });
+  } catch (error) {
+    console.error('Get my feedback error:', error);
+    res.status(500).json({ success: false, message: 'Failed to retrieve feedback status' });
+  }
+};
+
+/**
+ * Export feedback as CSV (Organizer only)
+ * GET /organizer/events/:id/feedback/export
+ */
+const exportFeedbackCSV = async (req, res) => {
+  try {
+    const { id: eventId } = req.params;
+    const organizerId = req.actor.id;
+
+    const event = await Event.findById(eventId);
+    if (!event) return res.status(404).json({ success: false, message: 'Event not found' });
+    if (event.organizerId.toString() !== organizerId) {
+      return res.status(403).json({ success: false, message: 'Access denied' });
+    }
+
+    const feedbackList = await Feedback.find({ eventId })
+      .sort({ submittedAt: -1 })
+      .select('rating comment submittedAt');
+
+    const escape = (val) => {
+      if (val === null || val === undefined) return '';
+      const str = String(val);
+      return str.includes(',') || str.includes('"') || str.includes('\n')
+        ? `"${str.replace(/"/g, '""')}"` : str;
+    };
+
+    const rows = [
+      ['Rating', 'Comment', 'Submitted At'],
+      ...feedbackList.map(fb => [
+        fb.rating,
+        escape(fb.comment || ''),
+        new Date(fb.submittedAt).toISOString()
+      ])
+    ];
+
+    const csv = rows.map(r => r.join(',')).join('\n');
+    const filename = `feedback-${event.name.replace(/\s+/g, '-')}.csv`;
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.status(200).send(csv);
+  } catch (error) {
+    console.error('Export feedback CSV error:', error);
+    res.status(500).json({ success: false, message: 'Failed to export feedback' });
+  }
+};
+
 module.exports = {
   submitFeedback,
   getEventFeedback,
-  getFeedbackStats
+  getFeedbackStats,
+  getMyFeedback,
+  exportFeedbackCSV
 };

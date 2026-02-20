@@ -18,6 +18,8 @@ import Organizers from './pages/participant/Organizers';
 import OrganizerDetail from './pages/participant/OrganizerDetail';
 import Onboarding from './pages/participant/Onboarding';
 import TeamsPage from './pages/participant/Teams';
+import TeamChat from './pages/participant/TeamChat';
+import EventDiscussion from './pages/participant/EventDiscussion';
 
 // Organizer pages
 import OrganizerDashboard from './pages/organizer/Dashboard';
@@ -79,6 +81,8 @@ function AppRoutes() {
         <Route path="organizers" element={<Organizers />} />
         <Route path="organizers/:id" element={<OrganizerDetail />} />
         <Route path="teams" element={<TeamsPage />} />
+        <Route path="teams/:teamId/chat" element={<TeamChat />} />
+        <Route path="events/:id/discussion" element={<EventDiscussion />} />
       </Route>
 
       {/* Legacy routes - redirect to new structure */}

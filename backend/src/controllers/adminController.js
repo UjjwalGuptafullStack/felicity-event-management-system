@@ -392,6 +392,45 @@ const getAdminStats = async (req, res) => {
 };
 
 /**
+ * Reset organizer password
+ * POST /admin/organizers/:id/reset-password
+ *
+ * Generates a new temporary password, hashes and saves it, returns the
+ * plain-text password to the admin so it can be shared with the organizer.
+ */
+const resetOrganizerPassword = async (req, res) => {
+  try {
+    const organizer = await Organizer.findById(req.params.id);
+
+    if (!organizer) {
+      return res.status(404).json({
+        success: false,
+        message: 'Organizer not found'
+      });
+    }
+
+    const temporaryPassword = generateTemporaryPassword();
+    organizer.passwordHash = await hashPassword(temporaryPassword);
+    await organizer.save();
+
+    res.status(200).json({
+      success: true,
+      message: `Password reset successfully for ${organizer.name}`,
+      credentials: {
+        loginEmail: organizer.loginEmail,
+        temporaryPassword
+      }
+    });
+  } catch (error) {
+    console.error('Reset organizer password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to reset password'
+    });
+  }
+};
+
+/**
  * Delete organizer permanently
  * DELETE /admin/organizers/:id
  */
@@ -428,6 +467,7 @@ module.exports = {
   disableOrganizer,
   enableOrganizer,
   deleteOrganizer,
+  resetOrganizerPassword,
   getAdminStats,
   getAdminDashboard
 };

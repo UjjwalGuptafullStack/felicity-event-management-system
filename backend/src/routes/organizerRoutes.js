@@ -21,7 +21,7 @@ const {
 } = require('../controllers/eventController');
 const {
   getOrganizerProfile,
-  updateOrganizerProfile
+  updateOrganizerProfile,
 } = require('../controllers/organizerProfileController');
 
 // All organizer routes require authentication + organizer role

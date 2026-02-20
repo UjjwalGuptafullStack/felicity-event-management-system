@@ -7,7 +7,11 @@
 const PasswordResetRequest = require('../models/PasswordResetRequest');
 const Organizer = require('../models/Organizer');
 const { hashPassword } = require('../utils/authHelpers');
-const { sendPasswordResetApprovedEmail, sendPasswordResetRejectedEmail } = require('../utils/emailService');
+const {
+  sendPasswordResetApprovedEmail,
+  sendPasswordResetRejectedEmail,
+  sendPasswordResetApprovalGrantedEmail
+} = require('../utils/emailService');
 const crypto = require('crypto');
 
 /**
@@ -39,7 +43,7 @@ const submitPublicResetRequest = async (req, res) => {
     // Check for existing pending request
     const existingRequest = await PasswordResetRequest.findOne({
       organizerId: organizer._id,
-      status: 'pending'
+      status: { $in: ['pending', 'approved'] }
     });
 
     if (existingRequest) {
@@ -52,7 +56,8 @@ const submitPublicResetRequest = async (req, res) => {
     // Create new request
     const resetRequest = new PasswordResetRequest({
       organizerId: organizer._id,
-      reason: reason.trim()
+      reason: reason.trim(),
+      type: 'forgot_password'
     });
 
     await resetRequest.save();
@@ -63,6 +68,7 @@ const submitPublicResetRequest = async (req, res) => {
       request: {
         id: resetRequest._id,
         status: resetRequest.status,
+        type: resetRequest.type,
         createdAt: resetRequest.createdAt
       }
     });
@@ -94,30 +100,34 @@ const submitResetRequest = async (req, res) => {
     // Check for existing pending request
     const existingRequest = await PasswordResetRequest.findOne({
       organizerId,
-      status: 'pending'
+      status: { $in: ['pending', 'approved'] }
     });
 
     if (existingRequest) {
       return res.status(400).json({
         success: false,
-        message: 'You already have a pending password reset request'
+        message: existingRequest.status === 'approved'
+          ? 'Your request has already been approved. Check your registered email for the new temporary password.'
+          : 'You already have a pending password reset request'
       });
     }
 
-    // Create new request
+    // Create new request – admin will generate a new password upon approval
     const resetRequest = new PasswordResetRequest({
       organizerId,
-      reason: reason.trim()
+      reason: reason.trim(),
+      type: 'forgot_password'
     });
 
     await resetRequest.save();
 
     res.status(201).json({
       success: true,
-      message: 'Password reset request submitted. Please wait for admin approval.',
+      message: 'Password change request submitted. Please wait for admin approval.',
       request: {
         id: resetRequest._id,
         status: resetRequest.status,
+        type: resetRequest.type,
         createdAt: resetRequest.createdAt
       }
     });
@@ -160,15 +170,19 @@ const getResetRequests = async (req, res) => {
           contactEmail: req.organizerId.contactEmail
         },
         reason: req.reason,
+        type: req.type,
         status: req.status,
         adminComment: req.adminComment,
-        temporaryPassword: req.temporaryPassword,
+        temporaryPassword: req.type === 'forgot_password' && req.status === 'approved'
+          ? req.temporaryPassword
+          : undefined,
         resolvedBy: req.resolvedBy ? {
           id: req.resolvedBy._id,
           name: `${req.resolvedBy.firstName} ${req.resolvedBy.lastName}`
         } : null,
         createdAt: req.createdAt,
-        resolvedAt: req.resolvedAt
+        resolvedAt: req.resolvedAt,
+        completedAt: req.completedAt
       }))
     });
   } catch (error) {
@@ -206,36 +220,54 @@ const approveResetRequest = async (req, res) => {
       });
     }
 
-    // Generate new temporary password
-    const temporaryPassword = crypto.randomBytes(8).toString('hex');
-    const passwordHash = await hashPassword(temporaryPassword);
-
-    // Update organizer password
     const organizer = resetRequest.organizerId;
-    organizer.passwordHash = passwordHash;
-    await organizer.save();
 
-    // Update reset request
+    if (resetRequest.type === 'forgot_password') {
+      // Generate and immediately set a temporary password
+      const temporaryPassword = crypto.randomBytes(8).toString('hex');
+      const passwordHash = await hashPassword(temporaryPassword);
+
+      organizer.passwordHash = passwordHash;
+      await organizer.save();
+
+      resetRequest.status = 'approved';
+      resetRequest.adminComment = adminComment;
+      resetRequest.newPasswordHash = passwordHash;
+      resetRequest.temporaryPassword = temporaryPassword;
+      resetRequest.resolvedBy = adminId;
+      resetRequest.resolvedAt = new Date();
+      await resetRequest.save();
+
+      await sendPasswordResetApprovedEmail(organizer, temporaryPassword);
+
+      return res.status(200).json({
+        success: true,
+        message: 'Password reset approved – temporary password generated and emailed to organizer.',
+        type: 'forgot_password',
+        temporaryPassword,
+        organizer: { id: organizer._id, name: organizer.name, loginEmail: organizer.loginEmail }
+      });
+    }
+
+    // self_change – grant permission; organizer sets their own password
     resetRequest.status = 'approved';
     resetRequest.adminComment = adminComment;
-    resetRequest.newPasswordHash = passwordHash;
-    resetRequest.temporaryPassword = temporaryPassword;
     resetRequest.resolvedBy = adminId;
     resetRequest.resolvedAt = new Date();
     await resetRequest.save();
 
-    // Send email with new password to organizer's contact email
-    await sendPasswordResetApprovedEmail(organizer, temporaryPassword);
+    // Notify organizer that they can now log in and set their password
+    try {
+      await sendPasswordResetApprovalGrantedEmail(organizer, adminComment);
+    } catch (emailErr) {
+      console.warn('Approval-granted email failed (non-fatal):', emailErr.message);
+    }
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      message: 'Password reset approved',
-      temporaryPassword,
-      organizer: {
-        id: organizer._id,
-        name: organizer.name,
-        loginEmail: organizer.loginEmail
-      }
+      message: 'Password change request approved – organizer can now set their new password.',
+      type: 'self_change',
+      organizer: { id: organizer._id, name: organizer.name, loginEmail: organizer.loginEmail }
     });
   } catch (error) {
     console.error('Approve reset request error:', error);
@@ -318,11 +350,16 @@ const getOwnResetRequests = async (req, res) => {
       requests: requests.map(req => ({
         id: req._id,
         reason: req.reason,
+        type: req.type,
         status: req.status,
         adminComment: req.adminComment,
-        temporaryPassword: req.status === 'approved' ? req.temporaryPassword : undefined,
+        temporaryPassword: req.type === 'forgot_password' && req.status === 'approved'
+          ? req.temporaryPassword
+          : undefined,
+        canSetNewPassword: req.type === 'self_change' && req.status === 'approved',
         createdAt: req.createdAt,
-        resolvedAt: req.resolvedAt
+        resolvedAt: req.resolvedAt,
+        completedAt: req.completedAt
       }))
     });
   } catch (error) {
@@ -334,11 +371,71 @@ const getOwnResetRequests = async (req, res) => {
   }
 };
 
+/**
+ * Complete password change (Organizer – self_change flow)
+ * Organizer has an approved request and now sets their new password.
+ * POST /organizer/password-reset/:id/complete
+ */
+const completePasswordChange = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { newPassword } = req.body;
+    const organizerId = req.actor.id;
+
+    if (!newPassword || newPassword.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password must be at least 8 characters'
+      });
+    }
+
+    const resetRequest = await PasswordResetRequest.findById(id).populate('organizerId');
+
+    if (!resetRequest) {
+      return res.status(404).json({ success: false, message: 'Reset request not found' });
+    }
+
+    if (resetRequest.organizerId._id.toString() !== organizerId) {
+      return res.status(403).json({ success: false, message: 'Forbidden' });
+    }
+
+    if (resetRequest.type !== 'self_change') {
+      return res.status(400).json({ success: false, message: 'Invalid request type for this operation' });
+    }
+
+    if (resetRequest.status !== 'approved') {
+      return res.status(400).json({
+        success: false,
+        message: resetRequest.status === 'pending'
+          ? 'Your request is still awaiting admin approval'
+          : 'This request cannot be used to change your password'
+      });
+    }
+
+    const organizer = resetRequest.organizerId;
+    organizer.passwordHash = await hashPassword(newPassword);
+    await organizer.save();
+
+    resetRequest.status = 'completed';
+    resetRequest.completedAt = new Date();
+    await resetRequest.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Password updated successfully. You can now log in with your new password.'
+    });
+  } catch (error) {
+    console.error('Complete password change error:', error);
+    res.status(500).json({ success: false, message: 'Failed to update password' });
+  }
+};
+
 module.exports = {
   submitPublicResetRequest,
   submitResetRequest,
   getResetRequests,
   approveResetRequest,
   rejectResetRequest,
+  completePasswordChange,
   getOwnResetRequests
 };

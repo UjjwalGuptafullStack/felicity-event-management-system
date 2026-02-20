@@ -21,6 +21,7 @@ const {
 const {
   getProfile,
   updateProfile,
+  changePassword,
   followOrganizer,
   unfollowOrganizer
 } = require('../controllers/userController');
@@ -44,6 +45,7 @@ router.use(requireParticipant());
 // Profile routes
 router.get('/me/profile', getProfile);
 router.patch('/me/profile', updateProfile);
+router.post('/me/change-password', changePassword);
 
 // Dashboard route
 router.get('/me/dashboard', getParticipantDashboard);

@@ -7,6 +7,7 @@
 
 const User = require('../models/User');
 const { USER_ROLES } = require('../utils/constants');
+const { hashPassword, comparePassword } = require('../utils/authHelpers');
 
 /**
  * Get participant profile
@@ -245,9 +246,78 @@ const unfollowOrganizer = async (req, res) => {
   }
 };
 
+/**
+ * Change participant password
+ * POST /me/change-password
+ * 
+ * Requires current password verification.
+ * On success, the old password is invalidated.
+ */
+const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Current password and new password are required'
+      });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password must be at least 8 characters long'
+      });
+    }
+
+    const user = await User.findById(req.actor.id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Verify current password
+    const isValid = await comparePassword(currentPassword, user.passwordHash);
+    if (!isValid) {
+      return res.status(401).json({
+        success: false,
+        message: 'Current password is incorrect'
+      });
+    }
+
+    // Ensure new password is different
+    const isSame = await comparePassword(newPassword, user.passwordHash);
+    if (isSame) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password must be different from the current password'
+      });
+    }
+
+    // Hash and save new password
+    user.passwordHash = await hashPassword(newPassword);
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Password changed successfully'
+    });
+  } catch (error) {
+    console.error('Change password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to change password'
+    });
+  }
+};
+
 module.exports = {
   getProfile,
   updateProfile,
+  changePassword,
   followOrganizer,
   unfollowOrganizer
 };

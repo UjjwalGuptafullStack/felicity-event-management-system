@@ -118,7 +118,7 @@ function OrganizerEvents() {
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   required
-                  className="mt-2 w-full rounded-lg border border-border bg-input-background px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  className="mt-2 w-full rounded-lg border border-input-border bg-input-background px-4 py-3 text-input-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
                 />
               </div>
               <div>
@@ -127,7 +127,7 @@ function OrganizerEvents() {
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   rows="4"
-                  className="mt-2 w-full rounded-lg border border-border bg-input-background px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  className="mt-2 w-full rounded-lg border border-input-border bg-input-background px-4 py-3 text-input-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
                 />
               </div>
               
@@ -138,7 +138,7 @@ function OrganizerEvents() {
                     value={formData.type}
                     onChange={(e) => setFormData({ ...formData, type: e.target.value })}
                     required
-                    className="mt-2 w-full rounded-lg border border-border bg-input-background px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    className="mt-2 w-full rounded-lg border border-input-border bg-input-background px-4 py-3 text-input-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
                   >
                     <option value="normal">Normal Event</option>
                     <option value="merchandise">Merchandise Event</option>
@@ -149,7 +149,7 @@ function OrganizerEvents() {
                   <select
                     value={formData.eligibility}
                     onChange={(e) => setFormData({ ...formData, eligibility: e.target.value })}
-                    className="mt-2 w-full rounded-lg border border-border bg-input-background px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    className="mt-2 w-full rounded-lg border border-input-border bg-input-background px-4 py-3 text-input-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
                   >
                     <option value="">Select eligibility...</option>
                     <option value="Open to all">Open to all</option>
@@ -168,7 +168,7 @@ function OrganizerEvents() {
                     value={formData.registrationDeadline}
                     onChange={(e) => setFormData({ ...formData, registrationDeadline: e.target.value })}
                     required
-                    className="mt-2 w-full rounded-lg border border-border bg-input-background px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    className="mt-2 w-full rounded-lg border border-input-border bg-input-background px-4 py-3 text-input-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
                   />
                 </div>
                 <div>
@@ -178,7 +178,7 @@ function OrganizerEvents() {
                     value={formData.startDate}
                     onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
                     required
-                    className="mt-2 w-full rounded-lg border border-border bg-input-background px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    className="mt-2 w-full rounded-lg border border-input-border bg-input-background px-4 py-3 text-input-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
                   />
                 </div>
                 <div>
@@ -188,7 +188,7 @@ function OrganizerEvents() {
                     value={formData.endDate}
                     onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
                     required
-                    className="mt-2 w-full rounded-lg border border-border bg-input-background px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    className="mt-2 w-full rounded-lg border border-input-border bg-input-background px-4 py-3 text-input-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
                   />
                 </div>
               </div>
@@ -201,7 +201,7 @@ function OrganizerEvents() {
                     value={formData.registrationLimit}
                     onChange={(e) => setFormData({ ...formData, registrationLimit: parseInt(e.target.value) })}
                     placeholder="Max participants"
-                    className="mt-2 w-full rounded-lg border border-border bg-input-background px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    className="mt-2 w-full rounded-lg border border-input-border bg-input-background px-4 py-3 text-input-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
                   />
                 </div>
                 <div>
@@ -211,7 +211,7 @@ function OrganizerEvents() {
                     value={formData.registrationFee}
                     onChange={(e) => setFormData({ ...formData, registrationFee: parseFloat(e.target.value) })}
                     placeholder="0 for free event"
-                    className="mt-2 w-full rounded-lg border border-border bg-input-background px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    className="mt-2 w-full rounded-lg border border-input-border bg-input-background px-4 py-3 text-input-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
                   />
                 </div>
               </div>
@@ -235,7 +235,7 @@ function OrganizerEvents() {
                         type="number" min={2} max={10}
                         value={formData.teamRegistration.minSize}
                         onChange={e => setFormData(f => ({ ...f, teamRegistration: { ...f.teamRegistration, minSize: parseInt(e.target.value) || 2 } }))}
-                        className="mt-1 w-full rounded-lg border border-border bg-input-background px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm"
+                        className="mt-1 w-full rounded-lg border border-input-border bg-input-background px-3 py-2 text-input-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm"
                       />
                     </div>
                     <div>
@@ -244,7 +244,7 @@ function OrganizerEvents() {
                         type="number" min={2} max={20}
                         value={formData.teamRegistration.maxSize}
                         onChange={e => setFormData(f => ({ ...f, teamRegistration: { ...f.teamRegistration, maxSize: parseInt(e.target.value) || 5 } }))}
-                        className="mt-1 w-full rounded-lg border border-border bg-input-background px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm"
+                        className="mt-1 w-full rounded-lg border border-input-border bg-input-background px-3 py-2 text-input-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm"
                       />
                     </div>
                   </div>

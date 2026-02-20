@@ -19,6 +19,7 @@ const {
   disableOrganizer,
   enableOrganizer,
   deleteOrganizer,
+  resetOrganizerPassword,
   getAdminStats,
   getAdminDashboard
 } = require('../controllers/adminController');
@@ -38,5 +39,6 @@ router.get('/organizers/:id', getOrganizer);
 router.patch('/organizers/:id/disable', disableOrganizer);
 router.patch('/organizers/:id/enable', enableOrganizer);
 router.delete('/organizers/:id', deleteOrganizer);
+router.post('/organizers/:id/reset-password', resetOrganizerPassword);
 
 module.exports = router;

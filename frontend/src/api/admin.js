@@ -28,6 +28,10 @@ export const enableOrganizer = (id) =>
 export const deleteOrganizer = (id) =>
   api.delete(`/admin/organizers/${id}`);
 
+// Reset organizer password (admin generates a new one and views it)
+export const resetOrganizerPassword = (id) =>
+  api.post(`/admin/organizers/${id}/reset-password`);
+
 // Get password reset requests
 export const getPasswordResetRequests = (params) => 
   api.get('/admin/password-reset/requests', { params });

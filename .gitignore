@@ -4,3 +4,9 @@ frontend/node_modules/
 .env
 backend/.env
 frontend/.env
+
+# Chat file uploads
+backend/uploads/
+
+# Local explanation docs (not for submission)
+docs/

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import {useNavigate } from 'react-router-dom';
-import { getOrganizerEvents, getOrganizerStats } from '../../api/organizer';
+import { useNavigate } from 'react-router-dom';
+import { getOrganizerDashboard } from '../../api/organizer';
 import { StatsCard } from '../../components/design-system/StatsCard';
 import { EventCard } from '../../components/design-system/EventCard';
 import { GradientButton } from '../../components/design-system/GradientButton';
@@ -16,12 +16,9 @@ function OrganizerDashboard() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [eventsRes, statsRes] = await Promise.all([
-          getOrganizerEvents(),
-          getOrganizerStats()
-        ]);
-        setEvents(eventsRes.data.events || []);
-        setStats(statsRes.data);
+        const res = await getOrganizerDashboard();
+        setEvents(res.data.events || []);
+        setStats(res.data.summary || {});
       } catch (error) {
         console.error('Error fetching organizer data:', error);
       } finally {
@@ -126,7 +123,7 @@ function OrganizerDashboard() {
                 transition={{ delay: 0.1 + index * 0.05 }}
               >
                 <div className="bg-card border border-border rounded-xl p-4 hover:shadow-lg transition-shadow cursor-pointer"
-                     onClick={() => navigate(`/organizer/events/${event._id}/detail`)}>
+                     onClick={() => navigate(`/organizer/events/${event.id}/detail`)}>
                   <div className="flex justify-between items-start mb-3">
                     <h4 className="text-lg font-bold text-foreground">{event.name}</h4>
                     <span className={`px-2 py-1 rounded-lg text-xs font-semibold ${
@@ -144,7 +141,7 @@ function OrganizerDashboard() {
                       {new Date(event.startDate).toLocaleDateString()}
                     </span>
                     <span className="text-primary font-semibold">
-                      {event.registrationCount || 0} registered
+                      {event.stats?.registrations ?? 0} registered
                     </span>
                   </div>
                 </div>

@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getProfile, updateProfile } from '../../api/participant';
+import { getProfile, updateProfile, changePassword } from '../../api/participant';
 import { GradientButton } from '../../components/design-system/GradientButton';
-import { User, Mail, Phone, Building2, Lock, Save, X, Tag } from 'lucide-react';
+import { User, Mail, Phone, Building2, Lock, Save, X, Tag, Eye, EyeOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 function Profile() {
@@ -19,6 +19,13 @@ function Profile() {
     interests: [],
     followedOrganizers: []
   });
+
+  // Change password state
+  const [showPwModal, setShowPwModal] = useState(false);
+  const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [pwChanging, setPwChanging] = useState(false);
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
 
   useEffect(() => {
     fetchProfile();
@@ -73,6 +80,32 @@ function Profile() {
       followedOrganizers: profile.preferences?.followedOrganizers || []
     });
     setEditing(false);
+  };
+
+  const handleChangePassword = async () => {
+    if (!pwForm.currentPassword || !pwForm.newPassword || !pwForm.confirmPassword) {
+      showNotice('error', 'All password fields are required');
+      return;
+    }
+    if (pwForm.newPassword !== pwForm.confirmPassword) {
+      showNotice('error', 'New passwords do not match');
+      return;
+    }
+    if (pwForm.newPassword.length < 8) {
+      showNotice('error', 'New password must be at least 8 characters');
+      return;
+    }
+    setPwChanging(true);
+    try {
+      await changePassword({ currentPassword: pwForm.currentPassword, newPassword: pwForm.newPassword });
+      setShowPwModal(false);
+      setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      showNotice('success', 'Password changed successfully! Please use your new password next time you log in.');
+    } catch (err) {
+      showNotice('error', err.response?.data?.message || 'Failed to change password');
+    } finally {
+      setPwChanging(false);
+    }
   };
 
   if (loading) {
@@ -152,8 +185,7 @@ function Profile() {
                     <span className="text-xs font-semibold text-muted-foreground uppercase">Participant Type</span>
                   </div>
                   <p className="text-foreground font-medium">
-                    {profile?.participantType === 'IIIT' ? 'IIIT Student' : 'External Participant'}
-                  
+                    {profile?.participantType === 'iiit' ? 'IIIT Student' : 'External Participant'}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">Cannot be changed</p>
                 </div>
@@ -195,7 +227,7 @@ function Profile() {
                     value={formData.firstName}
                     onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                     disabled={!editing}
-                    className="w-full px-4 py-3 bg-background border border-border rounded-xl text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                    className="w-full px-4 py-3 bg-input-background border border-input-border rounded-xl text-input-foreground placeholder:text-input-placeholder focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                   />
                 </div>
                 <div>
@@ -205,7 +237,7 @@ function Profile() {
                     value={formData.lastName}
                     onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                     disabled={!editing}
-                    className="w-full px-4 py-3 bg-background border border-border rounded-xl text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                    className="w-full px-4 py-3 bg-input-background border border-input-border rounded-xl text-input-foreground placeholder:text-input-placeholder focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                   />
                 </div>
                 <div>
@@ -218,7 +250,7 @@ function Profile() {
                     value={formData.contactNumber}
                     onChange={(e) => setFormData({ ...formData, contactNumber: e.target.value })}
                     disabled={!editing}
-                    className="w-full px-4 py-3 bg-background border border-border rounded-xl text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                    className="w-full px-4 py-3 bg-input-background border border-input-border rounded-xl text-input-foreground placeholder:text-input-placeholder focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                   />
                 </div>
                 <div>
@@ -231,7 +263,8 @@ function Profile() {
                     value={formData.collegeOrOrg}
                     onChange={(e) => setFormData({ ...formData, collegeOrOrg: e.target.value })}
                     disabled={!editing}
-                    className="w-full px-4 py-3 bg-background border border-border rounded-xl text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                    placeholder="e.g., IIIT Hyderabad"
+                    className="w-full px-4 py-3 bg-input-background border border-input-border rounded-xl text-input-foreground placeholder:text-input-placeholder focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                   />
                 </div>
               </div>
@@ -306,9 +339,12 @@ function Profile() {
                   <div className="flex-1 min-w-0">
                     <h4 className="font-semibold text-foreground mb-1">Password</h4>
                     <p className="text-sm text-muted-foreground mb-3">
-                      Last changed {new Date().toLocaleDateString()}
+                      Change your login password. You'll need to verify your current password first.
                     </p>
-                    <GradientButton size="sm" variant="accent">
+                    <GradientButton size="sm" variant="accent" onClick={() => {
+                      setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+                      setShowPwModal(true);
+                    }}>
                       Change Password
                     </GradientButton>
                   </div>
@@ -317,6 +353,117 @@ function Profile() {
             </div>
           </div>
       </motion.div>
+
+      {/* Change Password Modal */}
+      <AnimatePresence>
+        {showPwModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4"
+            onClick={(e) => { if (e.target === e.currentTarget) setShowPwModal(false); }}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-card border border-border rounded-2xl w-full max-w-md shadow-2xl"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between p-6 border-b border-border">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-accent/10 flex items-center justify-center">
+                    <Lock className="w-4 h-4 text-accent" />
+                  </div>
+                  <h3 className="text-lg font-bold text-foreground">Change Password</h3>
+                </div>
+                <button onClick={() => setShowPwModal(false)} className="text-muted-foreground hover:text-foreground transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Form */}
+              <div className="p-6 space-y-4">
+                {/* Current Password */}
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">Current Password</label>
+                  <div className="relative">
+                    <input
+                      type={showCurrent ? 'text' : 'password'}
+                      value={pwForm.currentPassword}
+                      onChange={e => setPwForm(p => ({ ...p, currentPassword: e.target.value }))}
+                      placeholder="Enter your current password"
+                      className="w-full px-4 py-3 pr-12 bg-input-background border border-input-border rounded-xl text-input-foreground placeholder:text-input-placeholder focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowCurrent(v => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-accent transition-colors"
+                    >
+                      {showCurrent ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* New Password */}
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">New Password</label>
+                  <div className="relative">
+                    <input
+                      type={showNew ? 'text' : 'password'}
+                      value={pwForm.newPassword}
+                      onChange={e => setPwForm(p => ({ ...p, newPassword: e.target.value }))}
+                      placeholder="Minimum 8 characters"
+                      className="w-full px-4 py-3 pr-12 bg-input-background border border-input-border rounded-xl text-input-foreground placeholder:text-input-placeholder focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNew(v => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-accent transition-colors"
+                    >
+                      {showNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Confirm Password */}
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">Confirm New Password</label>
+                  <input
+                    type="password"
+                    value={pwForm.confirmPassword}
+                    onChange={e => setPwForm(p => ({ ...p, confirmPassword: e.target.value }))}
+                    placeholder="Re-enter new password"
+                    className="w-full px-4 py-3 bg-input-background border border-input-border rounded-xl text-input-foreground placeholder:text-input-placeholder focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all"
+                  />
+                  {pwForm.confirmPassword && pwForm.newPassword !== pwForm.confirmPassword && (
+                    <p className="text-xs text-destructive mt-1">Passwords do not match</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center gap-3 px-6 pb-6">
+                <button
+                  onClick={() => setShowPwModal(false)}
+                  className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium bg-muted/10 text-foreground hover:bg-muted/20 transition-colors border border-border"
+                >
+                  Cancel
+                </button>
+                <GradientButton
+                  variant="accent"
+                  onClick={handleChangePassword}
+                  disabled={pwChanging || !pwForm.currentPassword || !pwForm.newPassword || !pwForm.confirmPassword}
+                  className="flex-1"
+                >
+                  {pwChanging ? 'Changing...' : 'Change Password'}
+                </GradientButton>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

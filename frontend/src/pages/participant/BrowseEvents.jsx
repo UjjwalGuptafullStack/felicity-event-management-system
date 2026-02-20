@@ -48,13 +48,44 @@ function BrowseEvents() {
     fetchData();
   }, []);
 
-  // Sort: matching interests first, then alphabetically
+  // Mapping from user interest keys to organizer category strings
+  const INTEREST_TO_ORG_CATEGORY = {
+    tech: ['technical', 'tech', 'technology'],
+    sports: ['sports'],
+    cultural: ['cultural', 'dance', 'cultural & arts'],
+    music: ['music & fine arts', 'music'],
+    dance: ['cultural', 'cultural & arts'],
+    literature: ['literary & debate', 'literature', 'debate'],
+    gaming: ['gaming'],
+    science: ['technical', 'science', 'research'],
+    entrepreneurship: ['entrepreneurship'],
+    design: ['design & creativity', 'design'],
+    photography: ['media & photography', 'photography', 'media'],
+    social: ['social & volunteer', 'social'],
+  };
+
+  const isRecommendedForUser = (event) => {
+    if (userInterests.length === 0) return false;
+    // Match event categories
+    if ((event.categories || []).some(c => userInterests.includes(c))) return true;
+    // Match organizer category (populated as event.organizer.category)
+    const orgCat = (event.organizer?.category || '').toLowerCase();
+    return userInterests.some(interest => {
+      const targets = INTEREST_TO_ORG_CATEGORY[interest] || [];
+      return targets.some(t => orgCat.includes(t) || t.includes(orgCat));
+    });
+  };
+
+  // Sort: when on "all", recommended events float to top; then by startDate ascending
   const sortedEvents = [...events].sort((a, b) => {
-    const aMatch = (a.categories || []).some(c => userInterests.includes(c));
-    const bMatch = (b.categories || []).some(c => userInterests.includes(c));
-    if (aMatch && !bMatch) return -1;
-    if (!aMatch && bMatch) return 1;
-    return (a.name || '').localeCompare(b.name || '');
+    if (activeFilter === 'all' && hasInterests) {
+      const aRec = isRecommendedForUser(a) ? 0 : 1;
+      const bRec = isRecommendedForUser(b) ? 0 : 1;
+      if (aRec !== bRec) return aRec - bRec;
+    }
+    const aDate = a.startDate ? new Date(a.startDate) : new Date(9999, 0);
+    const bDate = b.startDate ? new Date(b.startDate) : new Date(9999, 0);
+    return aDate - bDate;
   });
 
   const filteredEvents = sortedEvents.filter(event => {
@@ -66,8 +97,7 @@ function BrowseEvents() {
 
     const matchesFilter =
       activeFilter === 'all' ||
-      (activeFilter === 'recommended' &&
-        (event.categories || []).some(c => userInterests.includes(c))) ||
+      (activeFilter === 'recommended' && isRecommendedForUser(event)) ||
       (event.categories || []).includes(activeFilter);
 
     return matchesSearch && matchesFilter;
@@ -85,9 +115,7 @@ function BrowseEvents() {
   }
 
   const hasInterests = userInterests.length > 0;
-  const recommendedCount = events.filter(e =>
-    (e.categories || []).some(c => userInterests.includes(c))
-  ).length;
+  const recommendedCount = events.filter(isRecommendedForUser).length;
 
   const filterTabs = [
     { key: 'all', label: 'All Events' },
@@ -101,22 +129,24 @@ function BrowseEvents() {
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
         <h1 className="text-3xl sm:text-4xl font-bold text-foreground mb-2">Browse Events</h1>
         {hasInterests && (
-          <p className="text-muted-foreground text-sm">
-            Events matching your interests are shown first
+          <p className="text-muted-foreground text-sm flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5 text-primary" />
+            Recommended events appear first based on your interests
           </p>
         )}
       </motion.div>
 
       {/* Search bar */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="mb-4">
-        <div className="relative max-w-xl">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <div className="flex items-center gap-2 max-w-xl border border-input-border rounded-xl bg-input-background focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20 px-4 transition-all">
+          <Search className="w-4 h-4 text-accent/70 shrink-0" />
           <input
             type="text"
             placeholder="Search events..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 bg-card border border-border rounded-xl text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+            className="flex-1 py-3 bg-transparent text-input-foreground placeholder:text-input-placeholder focus:outline-none border-none ring-0"
+            style={{ boxShadow: 'none' }}
           />
         </div>
       </motion.div>
@@ -149,7 +179,7 @@ function BrowseEvents() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredEvents.map((event, idx) => {
-            const isRecommended = hasInterests && (event.categories || []).some(c => userInterests.includes(c));
+            const isRecommended = hasInterests && isRecommendedForUser(event);
             return (
               <motion.div
                 key={event._id}

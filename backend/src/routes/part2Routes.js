@@ -176,6 +176,13 @@ router.post(
   feedbackController.submitFeedback
 );
 
+router.get(
+  '/participant/events/:id/feedback/my',
+  authenticate,
+  requireParticipant(),
+  feedbackController.getMyFeedback
+);
+
 // Organizer routes
 router.get(
   '/organizer/events/:id/feedback',
@@ -189,6 +196,13 @@ router.get(
   authenticate,
   requireOrganizer(),
   feedbackController.getFeedbackStats
+);
+
+router.get(
+  '/organizer/events/:id/feedback/export',
+  authenticate,
+  requireOrganizer(),
+  feedbackController.exportFeedbackCSV
 );
 
 module.exports = router;

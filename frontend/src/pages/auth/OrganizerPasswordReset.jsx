@@ -96,7 +96,7 @@ const OrganizerPasswordReset = () => {
               onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
               required
               rows={4}
-              className="w-full px-4 py-3 bg-background border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all resize-none"
+              className="w-full px-4 py-3 bg-input-background border border-input-border rounded-xl text-input-foreground placeholder:text-input-placeholder focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all resize-none"
             />
             <p className="text-xs text-muted-foreground mt-1">
               Maximum 500 characters

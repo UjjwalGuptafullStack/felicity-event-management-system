@@ -5,6 +5,7 @@
  */
 
 const nodemailer = require('nodemailer');
+const QRCode = require('qrcode');
 const config = require('../config/env');
 
 let transporter = null;
@@ -61,10 +62,10 @@ const initTransporter = async () => {
 
 /**
  * Send an email.
- * @param {Object} opts - { to, subject, html, text }
+ * @param {Object} opts - { to, subject, html, text, attachments? }
  * @returns {Promise<boolean>} true if sent, false on failure
  */
-const sendEmail = async ({ to, subject, html, text }) => {
+const sendEmail = async ({ to, subject, html, text, attachments }) => {
   const t = await initTransporter();
 
   if (!t) {
@@ -90,6 +91,7 @@ const sendEmail = async ({ to, subject, html, text }) => {
       subject,
       text,
       html,
+      ...(attachments && attachments.length > 0 && { attachments }),
     });
 
     console.log(`[EmailService] Email sent to ${to} – Message ID: ${info.messageId}`);
@@ -266,6 +268,7 @@ Felicity Event Management System – IIIT Hyderabad
 
 /**
  * Send registration confirmation + ticket to a participant.
+ * Generates a QR code PNG and embeds it inline in the email.
  */
 const sendRegistrationConfirmationEmail = async (participant, event, ticket) => {
   const startDate = event.startDate
@@ -274,6 +277,18 @@ const sendRegistrationConfirmationEmail = async (participant, event, ticket) => 
   const endDate = event.endDate
     ? new Date(event.endDate).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })
     : 'TBA';
+
+  // Generate QR code as PNG buffer encoding the unique ticketId
+  let qrBuffer = null;
+  try {
+    qrBuffer = await QRCode.toBuffer(ticket.ticketId, {
+      width: 220,
+      margin: 2,
+      color: { dark: '#0b0f0d', light: '#e6f2ec' }
+    });
+  } catch (qrErr) {
+    console.warn('QR code generation failed (non-fatal):', qrErr.message);
+  }
 
   const html = `
     <div style="font-family:'Consolas','Courier New',monospace;background:#0b0f0d;color:#e6f2ec;padding:40px;border-radius:12px;max-width:600px;margin:auto;">
@@ -296,7 +311,8 @@ const sendRegistrationConfirmationEmail = async (participant, event, ticket) => 
       <div style="background:#0e1f16;border:2px solid #2e9e62;border-radius:10px;padding:20px 24px;margin:24px 0;text-align:center;">
         <p style="margin:0 0 8px;font-size:13px;color:#6fcf97;text-transform:uppercase;letter-spacing:.5px;">Your Ticket ID</p>
         <p style="margin:0;font-size:24px;font-family:monospace;font-weight:bold;color:#4ade80;letter-spacing:2px;">${ticket.ticketId}</p>
-        <p style="margin:8px 0 0;font-size:12px;color:#8aa39a;">Show this ID or QR code at the event entrance</p>
+        ${qrBuffer ? '<img src="cid:ticketqr@felicity" width="180" height="180" style="display:block;margin:16px auto 8px;border-radius:8px;" alt="Ticket QR Code" />' : ''}
+        <p style="margin:8px 0 0;font-size:12px;color:#8aa39a;">Show this QR code at the event entrance</p>
       </div>
 
       <p style="color:#b2c7bf;">Please keep this email as your registration proof. We look forward to seeing you at the event!</p>
@@ -330,6 +346,62 @@ Felicity Event Management System – IIIT Hyderabad
     subject: `Registration Confirmed – ${event.name}`,
     html,
     text,
+    ...(qrBuffer && {
+      attachments: [{
+        filename: 'ticket-qr.png',
+        content: qrBuffer,
+        cid: 'ticketqr@felicity',
+        contentType: 'image/png'
+      }]
+    })
+  });
+};
+
+/**
+ * Notify organizer that their self-change password request was approved.
+ * No temp password — they log in and set their own new password.
+ */
+const sendPasswordResetApprovalGrantedEmail = async (organizer, adminComment) => {
+  const html = `
+    <div style="font-family: 'Consolas', 'Courier New', monospace; background:#0b0f0d; color:#e6f2ec; padding:40px; border-radius:12px; max-width:600px; margin:auto;">
+      <div style="background:linear-gradient(135deg,#1b7f5f,#27a57a); border-radius:10px; padding:24px 28px; margin-bottom:28px;">
+        <h1 style="margin:0; font-size:22px; color:#eafff6;">Password Change Approved</h1>
+        <p style="margin:6px 0 0; color:#a7f3d0; font-size:14px;">Your request to change your password has been approved.</p>
+      </div>
+
+      <p style="color:#b2c7bf;">Hello <strong style="color:#e6f2ec;">${organizer.name}</strong>,</p>
+      <p style="color:#b2c7bf;">An administrator has approved your password change request. You can now log in to the organizer portal and set your new password from the <strong style="color:#3ddc97;">Profile → Change Password</strong> section.</p>
+
+      ${adminComment ? `
+      <div style="background:#121b17; border:1px solid #23312b; border-radius:10px; padding:20px 24px; margin:24px 0;">
+        <p style="margin:0 0 12px; font-size:13px; color:#8aa39a; text-transform:uppercase; letter-spacing:.5px;">Administrator's Note</p>
+        <p style="margin:0; color:#e6f2ec; line-height:1.6;">${adminComment}</p>
+      </div>
+      ` : ''}
+
+      <p style="color:#b2c7bf;">Please log in and update your password at your earliest convenience.</p>
+
+      <div style="border-top:1px solid #23312b; margin-top:32px; padding-top:16px;">
+        <p style="margin:0; font-size:12px; color:#8aa39a;">Felicity Event Management System &mdash; IIIT Hyderabad</p>
+      </div>
+    </div>
+  `;
+
+  const text = `
+Password Change Request Approved
+
+Hello ${organizer.name},
+
+An administrator has approved your password change request. Please log in and set your new password from the Profile → Change Password section.
+
+${adminComment ? `Administrator's Note:\n${adminComment}\n\n` : ''}Felicity Event Management System – IIIT Hyderabad
+  `.trim();
+
+  return sendEmail({
+    to: organizer.contactEmail,
+    subject: 'Password Change Request Approved - Felicity Events',
+    html,
+    text,
   });
 };
 
@@ -338,6 +410,7 @@ module.exports = {
   sendOrganizerCredentialsEmail,
   sendPasswordResetApprovedEmail,
   sendPasswordResetRejectedEmail,
+  sendPasswordResetApprovalGrantedEmail,
   sendRegistrationConfirmationEmail,
 };
 

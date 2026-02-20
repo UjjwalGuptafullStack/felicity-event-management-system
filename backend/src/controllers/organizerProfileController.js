@@ -5,6 +5,7 @@
  */
 
 const Organizer = require('../models/Organizer');
+const { comparePassword, hashPassword } = require('../utils/authHelpers');
 
 /**
  * Get organizer profile
@@ -109,7 +110,64 @@ const updateOrganizerProfile = async (req, res) => {
   }
 };
 
+/**
+ * Change organizer password
+ * POST /organizer/me/change-password
+ */
+const changeOrganizerPassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Current password and new password are required'
+      });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password must be at least 8 characters long'
+      });
+    }
+
+    const organizer = await Organizer.findById(req.actor.id);
+    if (!organizer) {
+      return res.status(404).json({
+        success: false,
+        message: 'Organizer not found'
+      });
+    }
+
+    // Verify current password
+    const isMatch = await comparePassword(currentPassword, organizer.passwordHash);
+    if (!isMatch) {
+      return res.status(400).json({
+        success: false,
+        message: 'Current password is incorrect'
+      });
+    }
+
+    // Hash and save new password
+    organizer.passwordHash = await hashPassword(newPassword);
+    await organizer.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Password changed successfully'
+    });
+  } catch (error) {
+    console.error('Change organizer password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to change password'
+    });
+  }
+};
+
 module.exports = {
   getOrganizerProfile,
-  updateOrganizerProfile
+  updateOrganizerProfile,
+  changeOrganizerPassword
 };

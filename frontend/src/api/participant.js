@@ -8,6 +8,10 @@ export const getProfile = () =>
 export const updateProfile = (data) => 
   api.patch('/participant/me/profile', data);
 
+// Change password (requires current password verification)
+export const changePassword = (data) =>
+  api.post('/participant/me/change-password', data);
+
 // Update onboarding preferences (interests + followed organizers)
 export const completeOnboarding = (data) =>
   api.patch('/participant/me/profile', { ...data, onboardingCompleted: true });
@@ -35,8 +39,11 @@ export const getMyMerchandisePurchases = () =>
 export const purchaseMerchandise = (data) => 
   api.post('/part2/merchandise/purchase', data);
 
-export const submitFeedback = (data) => 
-  api.post('/part2/feedback/submit', data);
+export const submitFeedback = (eventId, data) =>
+  api.post(`/participant/events/${eventId}/feedback`, data);
+
+export const getMyFeedback = (eventId) =>
+  api.get(`/participant/events/${eventId}/feedback/my`);
 
 export const registerForEvent = (eventId, ticketTypeId) =>
   api.post(`/participant/events/${eventId}/register`, { ticketTypeId });

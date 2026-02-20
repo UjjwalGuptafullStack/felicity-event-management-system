@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../../context/AuthContext';
 import { getPendingPasswordResets, approvePasswordReset, rejectPasswordReset } from '../../api/admin';
 import { GradientButton } from '../../components/design-system/GradientButton';
-import { KeyRound, LayoutDashboard, LogOut, CheckCircle, XCircle, Clock, Mail, Calendar, User, FileText } from 'lucide-react';
+import { KeyRound, LayoutDashboard, LogOut, CheckCircle, XCircle, Clock, Mail, Calendar, User, FileText, KeySquare, RefreshCw } from 'lucide-react';
 
 function PasswordResetRequests() {
   const { logout } = useAuth();
@@ -36,12 +36,16 @@ function PasswordResetRequests() {
     }
   };
 
-  const handleApprove = async (requestId) => {
+  const handleApprove = async (request) => {
     try {
-      const response = await approvePasswordReset(requestId);
+      const response = await approvePasswordReset(request.id || request._id);
       const tmp = response.data.temporaryPassword;
-      setGeneratedPassword(tmp);
-      showNotice('success', 'Request approved! See the temporary password below.');
+      if (tmp) {
+        setGeneratedPassword(tmp);
+        showNotice('success', 'Request approved! Temporary password generated and emailed to the organizer.');
+      } else {
+        showNotice('success', 'Approved! The organizer has been notified and can now set their own new password.');
+      }
       fetchRequests();
     } catch (error) {
       showNotice('error', error.response?.data?.message || 'Approval failed');
@@ -224,11 +228,22 @@ function PasswordResetRequests() {
                         </div>
                       </div>
                     </div>
-                    <div className="shrink-0">
+                    <div className="shrink-0 flex flex-col items-end gap-2">
                       <span className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-warning/10 text-warning border border-warning/20">
                         <span className="w-2 h-2 bg-warning rounded-full animate-pulse" />
                         Pending Review
                       </span>
+                      {request.type === 'self_change' ? (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                          <RefreshCw className="w-3 h-3" />
+                          Password Change Request
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                          <KeySquare className="w-3 h-3" />
+                          Forgot Password
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -263,7 +278,7 @@ function PasswordResetRequests() {
                           value={rejectComment}
                           onChange={(e) => setRejectComment(e.target.value)}
                           placeholder="Explain why this password reset request is being declined..."
-                          className="w-full bg-background border border-border rounded-lg px-4 py-3 text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-destructive/50 resize-none"
+                          className="w-full bg-input-background border border-input-border rounded-lg px-4 py-3 text-input-foreground placeholder:text-input-placeholder focus:outline-none focus:ring-2 focus:ring-destructive/50 resize-none"
                           rows={4}
                           maxLength={500}
                         />
@@ -299,11 +314,11 @@ function PasswordResetRequests() {
                         <GradientButton 
                           size="lg" 
                           variant="primary" 
-                          onClick={() => handleApprove(request.id)}
+                          onClick={() => handleApprove(request)}
                           className="flex-1"
                         >
                           <CheckCircle className="w-5 h-5 mr-2" />
-                          Approve & Generate Password
+                          {request.type === 'self_change' ? 'Approve Request' : 'Approve & Generate Password'}
                         </GradientButton>
                         <motion.button
                           whileHover={{ scale: 1.02 }}

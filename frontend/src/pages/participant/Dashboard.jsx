@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { getMyRegistrations, getMyMerchandisePurchases } from '../../api/participant';
-import { getAllEvents } from '../../api/events';
 import { StatsCard } from '../../components/design-system/StatsCard';
 import { EventCard } from '../../components/design-system/EventCard';
 import { GradientButton } from '../../components/design-system/GradientButton';
@@ -14,21 +13,26 @@ function ParticipantDashboard() {
   const navigate = useNavigate();
   const [registrations, setRegistrations] = useState([]);
   const [purchases, setPurchases] = useState([]);
-  const [upcomingEvents, setUpcomingEvents] = useState([]);
+  const [upcomingRegistrations, setUpcomingRegistrations] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [regRes, purchaseRes, eventsRes] = await Promise.all([
+        const [regRes, purchaseRes] = await Promise.all([
           getMyRegistrations(),
           getMyMerchandisePurchases(),
-          getAllEvents()
         ]);
-        setRegistrations(regRes.data.registrations || []);
+        const regs = regRes.data.registrations || [];
+        setRegistrations(regs);
         setPurchases(purchaseRes.data.purchases || []);
+
+        // Upcoming: registered events with startDate in the future, sorted by closest date
         const now = new Date();
-        setUpcomingEvents((eventsRes.data.events || []).filter(e => new Date(e.date) > now));
+        const upcoming = regs
+          .filter(reg => reg.event?.startDate && new Date(reg.event.startDate) > now)
+          .sort((a, b) => new Date(a.event.startDate) - new Date(b.event.startDate));
+        setUpcomingRegistrations(upcoming);
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
       } finally {
@@ -107,11 +111,11 @@ function ParticipantDashboard() {
             changeType="neutral"
           />
           <StatsCard
-            title="Upcoming Events"
-            value={upcomingEvents.length}
+            title="Upcoming Registrations"
+            value={upcomingRegistrations.length}
             icon={Ticket}
             gradient="accent"
-            change={upcomingEvents.length > 0 ? `Don't miss out!` : "Check back soon"}
+            change={upcomingRegistrations.length > 0 ? `Don't miss out!` : "Register for events"}
             changeType="neutral"
           />
         </motion.div>
@@ -124,24 +128,24 @@ function ParticipantDashboard() {
           className="mb-8"
         >
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-2xl font-bold text-foreground">Upcoming Events</h3>
+            <h3 className="text-2xl font-bold text-foreground">My Upcoming Events</h3>
             <GradientButton
               variant="primary"
               size="sm"
               onClick={() => navigate('/events')}
             >
-              View All
+              Browse More
             </GradientButton>
           </div>
-          {upcomingEvents.length === 0 ? (
+          {upcomingRegistrations.length === 0 ? (
             <div className="bg-card border border-border rounded-xl p-10 sm:p-12">
               <div className="flex flex-col items-center gap-4 text-center">
                 <div className="h-12 w-12 rounded-xl bg-muted/40 flex items-center justify-center">
                   <Calendar className="w-6 h-6 text-muted-foreground" />
                 </div>
                 <div>
-                  <p className="text-muted-foreground">No upcoming events available</p>
-                  <p className="text-sm text-muted-foreground mt-1">Check out what is live this week.</p>
+                  <p className="text-muted-foreground">No upcoming registered events</p>
+                  <p className="text-sm text-muted-foreground mt-1">Register for an event to see it here.</p>
                 </div>
                 <div className="w-full max-w-[220px]">
                   <GradientButton variant="accent" fullWidth onClick={() => navigate('/events')}>
@@ -152,22 +156,22 @@ function ParticipantDashboard() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {upcomingEvents.slice(0, 6).map((event, index) => (
+              {upcomingRegistrations.slice(0, 6).map((reg, index) => (
                 <motion.div
-                  key={event._id}
+                  key={reg.registrationId}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1 + index * 0.05 }}
                 >
                   <EventCard
-                    title={event.title}
-                    date={new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    time={event.time || 'TBA'}
-                    location={event.location}
-                    category={event.category || 'Event'}
-                    attendees={event.registrations?.length || 0}
-                    image={event.image || `https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&h=400&fit=crop`}
-                    onClick={() => navigate(`/events/${event._id}`)}
+                    title={reg.event?.name || 'Unnamed Event'}
+                    date={reg.event?.startDate ? new Date(reg.event.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'TBA'}
+                    time={'TBA'}
+                    location={''}
+                    category={reg.event?.organizer?.category || 'Event'}
+                    attendees={0}
+                    image={`https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&h=400&fit=crop`}
+                    onClick={() => navigate(`/participant/events/${reg.event?.id}`)}
                   />
                 </motion.div>
               ))}
@@ -200,23 +204,29 @@ function ParticipantDashboard() {
                   <tr className="border-b border-border text-left">
                     <th className="pb-3 pl-3 font-semibold text-muted-foreground text-sm">Event</th>
                     <th className="pb-3 font-semibold text-muted-foreground text-sm">Date</th>
-                    <th className="pb-3 font-semibold text-muted-foreground text-sm">Ticket Type</th>
+                    <th className="pb-3 font-semibold text-muted-foreground text-sm">Ticket</th>
                     <th className="pb-3 font-semibold text-muted-foreground text-sm">Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {registrations.map(reg => (
-                    <tr key={reg._id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
-                      <td className="py-4 pl-3">{reg.event?.title || 'N/A'}</td>
-                      <td className="py-4">{reg.event?.date ? new Date(reg.event.date).toLocaleDateString() : 'N/A'}</td>
-                      <td className="py-4">{reg.ticketType?.name || 'N/A'}</td>
+                  {[...registrations]
+                    .sort((a, b) => {
+                      const aD = a.event?.startDate ? new Date(a.event.startDate) : new Date(0);
+                      const bD = b.event?.startDate ? new Date(b.event.startDate) : new Date(0);
+                      return aD - bD;
+                    })
+                    .map(reg => (
+                    <tr key={reg.registrationId} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
+                      <td className="py-4 pl-3">{reg.event?.name || 'N/A'}</td>
+                      <td className="py-4">{reg.event?.startDate ? new Date(reg.event.startDate).toLocaleDateString() : 'N/A'}</td>
+                      <td className="py-4">{reg.ticket?.ticketId || '—'}</td>
                       <td className="py-4">
                         <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
-                          reg.status === 'confirmed' 
+                          reg.registrationStatus === 'registered' 
                             ? 'bg-success/10 text-success' 
                             : 'bg-warning/10 text-warning'
                         }`}>
-                          {reg.status}
+                          {reg.registrationStatus || reg.status || '—'}
                         </span>
                       </td>
                     </tr>

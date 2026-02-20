@@ -1,0 +1,169 @@
+====================================================================
+  FELICITY EVENT MANAGEMENT SYSTEM — DEPLOYMENT GUIDE
+  DASS 2025–26, IIIT Hyderabad
+====================================================================
+
+
+--------------------------------------------------------------------
+PREREQUISITES
+--------------------------------------------------------------------
+- Node.js 18 or higher (https://nodejs.org)
+- npm 9+ (bundled with Node.js)
+- A MongoDB Atlas cluster (free tier is sufficient)
+  https://www.mongodb.com/cloud/atlas/register
+
+
+--------------------------------------------------------------------
+1. CLONE THE REPOSITORY
+--------------------------------------------------------------------
+  git clone <repository-url>
+  cd felicity-event-management-system
+
+
+--------------------------------------------------------------------
+2. INSTALL DEPENDENCIES
+--------------------------------------------------------------------
+  # Backend
+  cd backend
+  npm install
+
+  # Frontend
+  cd ../frontend
+  npm install
+
+
+--------------------------------------------------------------------
+3. CONFIGURE ENVIRONMENT VARIABLES
+--------------------------------------------------------------------
+Create the file  backend/.env  with the following content
+(replace placeholder values with your own):
+
+  PORT=5000
+  NODE_ENV=development
+
+  # MongoDB Atlas connection string
+  MONGODB_URI=mongodb+srv://<user>:<password>@<cluster>.mongodb.net/felicity
+
+  # JWT
+  JWT_SECRET=replace-with-a-long-random-secret
+  JWT_EXPIRY=7d
+
+  # bcrypt cost factor
+  BCRYPT_ROUNDS=10
+
+  # IIIT email domain constraint for participants
+  IIIT_EMAIL_DOMAIN=@iiit.ac.in
+
+  # Admin account bootstrapped on first start
+  ADMIN_EMAIL=admin@iiit.ac.in
+  ADMIN_PASSWORD=YourStrongAdminPassword
+  ADMIN_FIRST_NAME=System
+  ADMIN_LAST_NAME=Administrator
+
+  # SMTP (optional — Ethereal test account auto-created when absent)
+  # SMTP_HOST=smtp.gmail.com
+  # SMTP_PORT=587
+  # SMTP_SECURE=false
+  # SMTP_USER=your@gmail.com
+  # SMTP_PASS=xxxx xxxx xxxx xxxx
+  # SMTP_FROM=Felicity Events <your@gmail.com>
+
+No frontend .env file is required for local development.
+The Vite dev server proxies nothing; Axios calls go directly to
+http://localhost:5000.
+
+
+--------------------------------------------------------------------
+4. START THE BACKEND (development)
+--------------------------------------------------------------------
+  cd backend
+  npm run dev
+
+The server listens on http://localhost:5000
+On first start, bootstrap.js seeds the admin account automatically.
+
+The backend also serves uploaded chat files at:
+  http://localhost:5000/uploads/chat/<filename>
+
+Socket.io is mounted on the same port (no separate port needed).
+
+
+--------------------------------------------------------------------
+5. START THE FRONTEND (development)
+--------------------------------------------------------------------
+  # In a new terminal
+  cd frontend
+  npm run dev
+
+The Vite dev server runs at http://localhost:5173
+
+
+--------------------------------------------------------------------
+6. ACCESS POINTS
+--------------------------------------------------------------------
+  Frontend (browser):
+    http://localhost:5173
+
+  Backend REST API:
+    http://localhost:5000
+
+  Socket.io (team chat):
+    ws://localhost:5000   (used internally by the frontend)
+
+  Login routes:
+    /login/participant   — IIIT participant login
+    /register            — Participant self-registration
+    /login/organizer     — Organizer login (credentials from admin)
+    /login/admin         — Admin login (bootstrapped from .env)
+
+
+--------------------------------------------------------------------
+7. PRODUCTION BUILD
+--------------------------------------------------------------------
+  # Build frontend static files
+  cd frontend
+  npm run build
+  # Output: frontend/dist/
+
+  # Serve with a reverse proxy (nginx / caddy) or a Node static server.
+  # Point the backend to NODE_ENV=production and update MONGODB_URI
+  # to the production Atlas cluster.
+
+  # Start backend
+  cd backend
+  node server.js
+
+
+--------------------------------------------------------------------
+8. KEY ENVIRONMENT NOTES
+--------------------------------------------------------------------
+- MONGODB_URI is required — the server will crash without it.
+- JWT_SECRET must be kept secret; rotate it to invalidate all tokens.
+- SMTP credentials are optional; without them Ethereal auto-mode
+  logs email preview URLs to the server console.
+- The uploads/ directory (inside backend/) is created automatically
+  by Multer when the first chat file is uploaded.
+
+
+--------------------------------------------------------------------
+9. TROUBLESHOOTING
+--------------------------------------------------------------------
+Problem : "MongooseServerSelectionError"
+Solution: Check MONGODB_URI; whitelist your IP in Atlas Network Access.
+
+Problem : "JsonWebTokenError: invalid signature"
+Solution: Backend was restarted with a new JWT_SECRET while old
+          tokens still exist in browser localStorage. Clear
+          localStorage and log in again.
+
+Problem : Socket.io connection refused
+Solution: Ensure the backend is running. The frontend socket client
+          reads the JWT from localStorage; log in first.
+
+Problem : Chat file upload fails (413 or similar)
+Solution: Multer enforces a 10 MB limit per file.
+
+
+====================================================================
+  Built for DASS 2025–26 · IIIT Hyderabad
+====================================================================
