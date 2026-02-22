@@ -8,7 +8,12 @@ const organizerSchema = new mongoose.Schema({
   },
   category: {
     type: String,
-    trim: true
+    trim: true,
+    enum: {
+      values: ['technical', 'cultural', 'sports', 'academic', 'social', 'other'],
+      message: 'Category must be one of: technical, cultural, sports, academic, social, other'
+    },
+    lowercase: true
   },
   description: {
     type: String,
@@ -44,7 +49,7 @@ const organizerSchema = new mongoose.Schema({
   }
 });
 
-// Index on loginEmail for authentication lookups
-organizerSchema.index({ loginEmail: 1 });
+// Note: loginEmail already has a unique index via field definition (unique: true + sparse: true)
+// No additional explicit index needed.
 
 module.exports = mongoose.model('Organizer', organizerSchema);

@@ -59,7 +59,5 @@ const userSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Index on email for unique constraint and fast lookups
-userSchema.index({ email: 1 });
-
+// Note: email already has a unique index via field definition (unique: true)
 module.exports = mongoose.model('User', userSchema);

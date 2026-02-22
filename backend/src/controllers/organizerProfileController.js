@@ -25,7 +25,7 @@ const getOrganizerProfile = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      profile: {
+      organizer: {
         id: organizer._id,
         name: organizer.name,
         category: organizer.category,
@@ -92,7 +92,7 @@ const updateOrganizerProfile = async (req, res) => {
     res.status(200).json({
       success: true,
       message: 'Profile updated successfully',
-      profile: {
+      organizer: {
         id: organizer._id,
         name: organizer.name,
         category: organizer.category,

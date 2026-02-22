@@ -17,6 +17,8 @@ const {
   updateEvent,
   publishEvent,
   viewEventRegistrations,
+  closeEventRegistrations,
+  getEventAnalytics,
   getOrganizerDashboard
 } = require('../controllers/eventController');
 const {
@@ -44,5 +46,9 @@ router.post('/events/:id/publish', publishEvent);
 
 // Registration view routes (read-only)
 router.get('/events/:id/registrations', viewEventRegistrations);
+
+// Analytics and event control
+router.get('/events/:id/analytics', getEventAnalytics);
+router.post('/events/:id/close-registrations', closeEventRegistrations);
 
 module.exports = router;

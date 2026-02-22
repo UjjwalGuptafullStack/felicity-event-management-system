@@ -10,6 +10,36 @@ const { EVENT_STATUS, EVENT_TYPES, EVENT_CATEGORIES } = require('../utils/consta
 const { ownsEvent, ownershipDenied } = require('../utils/accessControl');
 
 /**
+ * Compute the effective (display) status of an event based on current time.
+ *
+ * Rules (applied only when the stored status is published/ongoing):
+ *   now >= endDate   → closed
+ *   now >= startDate → ongoing
+ *   otherwise        → published
+ *
+ * draft / closed that were set manually are returned unchanged so that
+ * manual intervention (e.g., admin-forced close) is respected.
+ *
+ * @param {Object} event - Mongoose event document (or plain object)
+ * @returns {string} Effective status string
+ */
+const computeEffectiveStatus = (event) => {
+  const stored = event.status;
+  // Only auto-compute for active (non-draft) events
+  if (stored === EVENT_STATUS.DRAFT || stored === EVENT_STATUS.CLOSED) {
+    return stored;
+  }
+  const now = new Date();
+  if (event.endDate && new Date(event.endDate) <= now) {
+    return EVENT_STATUS.CLOSED;
+  }
+  if (event.startDate && new Date(event.startDate) <= now) {
+    return EVENT_STATUS.ONGOING;
+  }
+  return EVENT_STATUS.PUBLISHED;
+};
+
+/**
  * Validate event dates
  * @param {Date} registrationDeadline 
  * @param {Date} startDate 
@@ -182,7 +212,7 @@ const listOwnEvents = async (req, res) => {
         _id: event._id,
         name: event.name,
         type: event.type,
-        status: event.status,
+        status: computeEffectiveStatus(event),
         registrationDeadline: event.registrationDeadline,
         startDate: event.startDate,
         endDate: event.endDate,
@@ -237,7 +267,7 @@ const getOwnEvent = async (req, res) => {
         registrationFee: event.registrationFee,
         organizerId: event.organizerId,
         tags: event.tags,
-        status: event.status,
+        status: computeEffectiveStatus(event),
         teamRegistration: event.teamRegistration || { enabled: false, minSize: 2, maxSize: 5 },
         createdAt: event.createdAt
       }
@@ -499,6 +529,10 @@ const publishEvent = async (req, res) => {
 /**
  * View registrations for own event (with attendance info)
  * GET /organizer/events/:id/registrations
+ *
+ * Query params (all optional):
+ *   attended=true|false          — filter by attendance
+ *   participantType=iiit|non-iiit — filter by institution category
  */
 const viewEventRegistrations = async (req, res) => {
   try {
@@ -507,7 +541,7 @@ const viewEventRegistrations = async (req, res) => {
     if (!ownsEvent(req.actor, event)) return res.status(403).json(ownershipDenied());
 
     const Registration = require('../models/Registration');
-    const Attendance = require('../models/Attendance');
+    const Attendance   = require('../models/Attendance');
 
     const registrations = await Registration.find({ eventId: event._id })
       .populate('participantId', 'firstName lastName email contactNumber participantType')
@@ -515,14 +549,12 @@ const viewEventRegistrations = async (req, res) => {
 
     // Fetch attendance records indexed by registrationId
     const attendanceRecords = await Attendance.find({ eventId: event._id });
-    const attendanceMap = {};
-    for (const a of attendanceRecords) {
-      attendanceMap[a.registrationId.toString()] = a;
-    }
+    const attendanceSet = new Set(attendanceRecords.map(a => a.registrationId.toString()));
 
-    const formattedRegistrations = registrations.map(reg => {
+    let formatted = registrations.map(reg => {
       const participant = reg.participantId;
-      const attendance = attendanceMap[reg._id.toString()];
+      const attended = attendanceSet.has(reg._id.toString());
+      const attendanceRecord = attendanceRecords.find(a => a.registrationId.toString() === reg._id.toString());
       return {
         registrationId: reg._id,
         participant: participant ? {
@@ -536,16 +568,26 @@ const viewEventRegistrations = async (req, res) => {
         registrationType: reg.registrationType,
         paymentStatus: reg.paymentStatus,
         totalAmount: reg.totalAmount || 0,
-        attended: !!attendance,
-        attendedAt: attendance?.scannedAt || null
+        attended,
+        attendedAt: attendanceRecord?.scannedAt || null
       };
     });
 
+    // Server-side filters
+    const { attended: attendedFilter, participantType: ptFilter } = req.query;
+    if (attendedFilter !== undefined) {
+      const wantAttended = attendedFilter === 'true';
+      formatted = formatted.filter(r => r.attended === wantAttended);
+    }
+    if (ptFilter) {
+      formatted = formatted.filter(r => r.participant?.participantType === ptFilter);
+    }
+
     res.status(200).json({
       success: true,
-      event: { id: event._id, name: event.name, type: event.type, status: event.status },
-      count: formattedRegistrations.length,
-      registrations: formattedRegistrations
+      event: { id: event._id, name: event.name, type: event.type, status: computeEffectiveStatus(event) },
+      count: formatted.length,
+      registrations: formatted
     });
   } catch (error) {
     console.error('View event registrations error:', error);
@@ -582,16 +624,20 @@ const closeEventRegistrations = async (req, res) => {
 const getEventAnalytics = async (req, res) => {
   try {
     const Registration = require('../models/Registration');
-    const Attendance = require('../models/Attendance');
-    const { REGISTRATION_STATUS } = require('../utils/constants');
+    const Attendance   = require('../models/Attendance');
+    const Team         = require('../models/Team');
+    const { REGISTRATION_STATUS, TEAM_STATUS } = require('../utils/constants');
 
     const event = await Event.findById(req.params.id);
     if (!event) return res.status(404).json({ success: false, message: 'Event not found' });
     if (!ownsEvent(req.actor, event)) return res.status(403).json(ownershipDenied());
 
-    const [registrations, attendanceCount] = await Promise.all([
+    const [registrations, attendanceCount, completedTeams] = await Promise.all([
       Registration.find({ eventId: event._id, status: REGISTRATION_STATUS.REGISTERED }),
-      Attendance.countDocuments({ eventId: event._id })
+      Attendance.countDocuments({ eventId: event._id }),
+      event.teamRegistration?.enabled
+        ? Team.countDocuments({ eventId: event._id, status: TEAM_STATUS.COMPLETE })
+        : Promise.resolve(0)
     ]);
 
     const registrationCount = registrations.length;
@@ -612,7 +658,8 @@ const getEventAnalytics = async (req, res) => {
           ? +((attendanceCount / registrationCount) * 100).toFixed(1)
           : 0,
         registrationFee: event.registrationFee || 0,
-        teamRegistrationEnabled: event.teamRegistration?.enabled || false
+        teamRegistrationEnabled: event.teamRegistration?.enabled || false,
+        completedTeams: event.teamRegistration?.enabled ? completedTeams : null
       }
     });
   } catch (error) {
@@ -693,5 +740,8 @@ module.exports = {
   updateEvent,
   publishEvent,
   viewEventRegistrations,
-  getOrganizerDashboard
+  closeEventRegistrations,
+  getEventAnalytics,
+  getOrganizerDashboard,
+  computeEffectiveStatus
 };

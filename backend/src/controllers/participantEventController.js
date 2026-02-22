@@ -22,13 +22,14 @@ const Organizer = require('../models/Organizer');
 const User = require('../models/User');
 const { sendRegistrationConfirmationEmail } = require('../utils/emailService');
 const { EVENT_STATUS, REGISTRATION_STATUS, REGISTRATION_TYPES, EVENT_TYPES } = require('../utils/constants');
+const { computeEffectiveStatus } = require('./eventController');
 
 /**
  * Browse events (list with filters)
  * GET /events
- * 
- * Visibility: published events only
- * Supports: pagination, search, filters
+ *
+ * Visibility: published events only (status = published OR auto-upgraded to ongoing)
+ * Supports: pagination, search (event name + organizer name), type, date filters
  */
 const browseEvents = async (req, res) => {
   try {
@@ -42,14 +43,23 @@ const browseEvents = async (req, res) => {
       startDateTo
     } = req.query;
 
-    // Build filter - only published events
+    // Show events that are published (includes auto-ongoing ones — still has stored status=published)
     const filter = {
-      status: EVENT_STATUS.PUBLISHED
+      status: { $in: [EVENT_STATUS.PUBLISHED, EVENT_STATUS.ONGOING] }
     };
 
-    // Search by event name (partial match, case-insensitive)
+    // If search term given, match event name OR look up organizer ids by name first
     if (search) {
-      filter.name = { $regex: search, $options: 'i' };
+      const matchingOrganizers = await Organizer.find(
+        { name: { $regex: search, $options: 'i' } },
+        '_id'
+      );
+      const matchingOrgIds = matchingOrganizers.map(o => o._id);
+
+      filter.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { organizerId: { $in: matchingOrgIds } }
+      ];
     }
 
     // Filter by event type
@@ -57,7 +67,7 @@ const browseEvents = async (req, res) => {
       filter.type = type;
     }
 
-    // Filter by organizer
+    // Filter by specific organizer
     if (organizerId) {
       filter.organizerId = organizerId;
     }
@@ -65,29 +75,23 @@ const browseEvents = async (req, res) => {
     // Filter by date range
     if (startDateFrom || startDateTo) {
       filter.startDate = {};
-      if (startDateFrom) {
-        filter.startDate.$gte = new Date(startDateFrom);
-      }
-      if (startDateTo) {
-        filter.startDate.$lte = new Date(startDateTo);
-      }
+      if (startDateFrom) filter.startDate.$gte = new Date(startDateFrom);
+      if (startDateTo)   filter.startDate.$lte = new Date(startDateTo);
     }
 
-    // Calculate pagination
-    const pageNum = parseInt(page);
+    const pageNum  = parseInt(page);
     const limitNum = parseInt(limit);
-    const skip = (pageNum - 1) * limitNum;
+    const skip     = (pageNum - 1) * limitNum;
 
-    // Execute query with pagination
-    const events = await Event.find(filter)
-      .sort({ startDate: 1 }) // Default sort: startDate ASC
-      .skip(skip)
-      .limit(limitNum)
-      .populate('organizerId', 'name category')
-      .select('-__v');
-
-    // Get total count for pagination metadata
-    const total = await Event.countDocuments(filter);
+    const [events, total] = await Promise.all([
+      Event.find(filter)
+        .sort({ startDate: 1 })
+        .skip(skip)
+        .limit(limitNum)
+        .populate('organizerId', 'name category')
+        .select('-__v'),
+      Event.countDocuments(filter)
+    ]);
 
     res.status(200).json({
       success: true,
@@ -112,6 +116,7 @@ const browseEvents = async (req, res) => {
         registrationFee: event.registrationFee,
         registrationLimit: event.registrationLimit,
         tags: event.tags,
+        status: computeEffectiveStatus(event),
         organizer: event.organizerId ? {
           id: event.organizerId._id,
           name: event.organizerId.name,
@@ -147,8 +152,9 @@ const getEventDetails = async (req, res) => {
       });
     }
 
-    // Only show published events to participants
-    if (event.status !== EVENT_STATUS.PUBLISHED) {
+    // Only show published / ongoing events to participants
+    const effectiveStatus = computeEffectiveStatus(event);
+    if (effectiveStatus === EVENT_STATUS.DRAFT) {
       return res.status(404).json({
         success: false,
         message: 'Event not found'
@@ -157,19 +163,19 @@ const getEventDetails = async (req, res) => {
 
     // Compute flags
     const now = new Date();
-    const isRegistrationOpen = 
-      event.registrationDeadline && 
+    const isRegistrationOpen =
+      event.registrationDeadline &&
       new Date(event.registrationDeadline) > now &&
-      event.status === EVENT_STATUS.PUBLISHED;
+      ['published', 'ongoing'].includes(effectiveStatus);
 
     // Calculate if event is full
     const registrationCount = await Registration.countDocuments({
       eventId: event._id,
       status: REGISTRATION_STATUS.REGISTERED
     });
-    
-    const isFull = event.registrationLimit 
-      ? registrationCount >= event.registrationLimit 
+
+    const isFull = event.registrationLimit
+      ? registrationCount >= event.registrationLimit
       : false;
 
     res.status(200).json({
@@ -186,7 +192,7 @@ const getEventDetails = async (req, res) => {
         registrationLimit: event.registrationLimit,
         registrationFee: event.registrationFee,
         tags: event.tags,
-        status: event.status,
+        status: effectiveStatus,
         organizer: event.organizerId ? {
           id: event.organizerId._id,
           name: event.organizerId.name,

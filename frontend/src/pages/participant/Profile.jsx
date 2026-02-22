@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getProfile, updateProfile, changePassword } from '../../api/participant';
 import { GradientButton } from '../../components/design-system/GradientButton';
-import { User, Mail, Phone, Building2, Lock, Save, X, Tag, Eye, EyeOff } from 'lucide-react';
+import { User, Mail, Phone, Building2, Lock, Save, X, Tag, Eye, EyeOff, Heart, ExternalLink } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 function Profile() {
@@ -322,6 +322,52 @@ function Profile() {
               {formData.interests.length === 0 && (
                 <p className="text-xs text-muted-foreground mt-2">
                   {editing ? 'Click to select your areas of interest' : 'No interests selected — click Edit Profile to add some'}
+                </p>
+              )}
+            </div>
+
+            {/* Followed Clubs Section */}
+            <div className="pt-6 border-t border-border">
+              <div className="flex items-center gap-2 mb-4">
+                <Heart className="w-4 h-4 text-primary" />
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                  Followed Clubs & Organizers
+                </h3>
+              </div>
+              {formData.followedOrganizers && formData.followedOrganizers.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {formData.followedOrganizers.map(org => {
+                    const orgId = org._id || org.id || org;
+                    const orgName = org.name || 'Unknown';
+                    const orgCategory = org.category || '';
+                    return (
+                      <div
+                        key={orgId}
+                        className="flex items-center gap-2 px-3 py-2 rounded-xl bg-primary/5 border border-primary/20 text-sm"
+                      >
+                        <Heart className="w-3.5 h-3.5 text-primary fill-current shrink-0" />
+                        <span className="font-medium text-foreground">{orgName}</span>
+                        {orgCategory && (
+                          <span className="text-xs text-muted-foreground capitalize">· {orgCategory}</span>
+                        )}
+                        <a
+                          href={`/participant/organizers/${orgId}`}
+                          className="text-primary hover:text-primary/70 transition-colors"
+                          title="View organizer"
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  You are not following any clubs yet.{' '}
+                  <a href="/participant/organizers" className="text-primary hover:underline">
+                    Browse clubs
+                  </a>{' '}
+                  to follow and stay updated on their events.
                 </p>
               )}
             </div>

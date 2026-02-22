@@ -23,18 +23,21 @@ const generateTemporaryPassword = () => {
 
 /**
  * Generate login email from organizer name
+ * Format: <sanitized-name>@clubs.iiit.ac.in
+ * This namespace keeps organizer credentials clearly separated from
+ * real IIIT employee/student emails.
  * @param {string} name - Organizer name
  * @returns {string} Login email
  */
 const generateLoginEmail = (name) => {
-  // Convert to lowercase, replace spaces with dots, remove special chars
+  // Convert to lowercase, replace spaces with hyphens, remove special chars
   const sanitized = name
     .toLowerCase()
     .trim()
-    .replace(/\s+/g, '.')
-    .replace(/[^a-z0-9.]/g, '');
-  
-  return `${sanitized}@iiit.ac.in`;
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '');
+
+  return `${sanitized}@clubs.iiit.ac.in`;
 };
 
 /**
@@ -431,8 +434,12 @@ const resetOrganizerPassword = async (req, res) => {
 };
 
 /**
- * Delete organizer permanently
+ * Delete organizer permanently — CASCADE
  * DELETE /admin/organizers/:id
+ *
+ * Removes the organizer and ALL associated data in dependency order:
+ *   Attendance → Feedback → DiscussionMessage → Ticket → Registration
+ *   → Team → PasswordResetRequest → Event → Organizer
  */
 const deleteOrganizer = async (req, res) => {
   try {
@@ -445,11 +452,60 @@ const deleteOrganizer = async (req, res) => {
       });
     }
 
+    const Event               = require('../models/Event');
+    const Registration        = require('../models/Registration');
+    const Ticket              = require('../models/Ticket');
+    const Team                = require('../models/Team');
+    const Attendance          = require('../models/Attendance');
+    const Feedback            = require('../models/Feedback');
+    const DiscussionMessage   = require('../models/DiscussionMessage');
+    const PasswordResetRequest = require('../models/PasswordResetRequest');
+
+    // 1. Find all events owned by this organizer
+    const events = await Event.find({ organizerId: req.params.id }).select('_id');
+    const eventIds = events.map(e => e._id);
+
+    if (eventIds.length > 0) {
+      // 2. Find all registrations for these events
+      const registrations = await Registration.find({ eventId: { $in: eventIds } }).select('_id');
+      const registrationIds = registrations.map(r => r._id);
+
+      // 3. Delete attendance records (depends on event + registration)
+      await Attendance.deleteMany({ eventId: { $in: eventIds } });
+
+      // 4. Delete feedback (depends on event)
+      await Feedback.deleteMany({ eventId: { $in: eventIds } });
+
+      // 5. Delete discussion messages (depends on event)
+      await DiscussionMessage.deleteMany({ eventId: { $in: eventIds } });
+
+      // 6. Delete tickets (depends on registration)
+      if (registrationIds.length > 0) {
+        await Ticket.deleteMany({ registrationId: { $in: registrationIds } });
+      }
+
+      // 7. Delete registrations
+      await Registration.deleteMany({ eventId: { $in: eventIds } });
+
+      // 8. Delete teams
+      await Team.deleteMany({ eventId: { $in: eventIds } });
+
+      // 9. Delete events
+      await Event.deleteMany({ organizerId: req.params.id });
+    }
+
+    // 10. Delete password reset requests for this organizer
+    await PasswordResetRequest.deleteMany({ organizerId: req.params.id });
+
+    // 11. Finally delete the organizer itself
     await Organizer.findByIdAndDelete(req.params.id);
+
+    console.log(`[Admin] Organizer "${organizer.name}" deleted with ${eventIds.length} event(s) and all associated data.`);
 
     res.status(200).json({
       success: true,
-      message: `Organizer "${organizer.name}" has been permanently deleted.`
+      message: `Organizer "${organizer.name}" and all associated data have been permanently deleted.`,
+      deletedEventCount: eventIds.length
     });
   } catch (error) {
     console.error('Delete organizer error:', error);

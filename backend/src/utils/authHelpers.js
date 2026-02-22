@@ -139,14 +139,19 @@ const verifyToken = (token) => {
 };
 
 /**
- * Validate email belongs to IIIT participant domains
- * IIIT participants must use @research.iiit.ac.in or @students.iiit.ac.in
+ * Validate email belongs to IIIT participant domains.
+ * Accepted:
+ *   @students.iiit.ac.in   — student accounts
+ *   @research.iiit.ac.in   — research scholars
+ *   @iiit.ac.in            — faculty / staff
+ *   *.iiit.ac.in           — any IIIT sub-domain
  * @param {string} email - Email to validate
- * @returns {boolean} True if IIIT participant email
+ * @returns {boolean} True if IIIT email
  */
 const isIIITEmail = (email) => {
   const emailLower = email.toLowerCase();
-  return emailLower.endsWith('@research.iiit.ac.in') || emailLower.endsWith('@students.iiit.ac.in');
+  // Match any sub-domain of iiit.ac.in (includes students., research., faculty., etc.)
+  return emailLower.endsWith('@iiit.ac.in') || emailLower.endsWith('.iiit.ac.in');
 };
 
 module.exports = {

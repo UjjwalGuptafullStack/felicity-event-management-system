@@ -29,7 +29,5 @@ const ticketSchema = new mongoose.Schema({
   }
 });
 
-// Index on ticketId for fast ticket lookups
-ticketSchema.index({ ticketId: 1 });
-
+// Note: ticketId already has a unique index via field definition (unique: true)
 module.exports = mongoose.model('Ticket', ticketSchema);
