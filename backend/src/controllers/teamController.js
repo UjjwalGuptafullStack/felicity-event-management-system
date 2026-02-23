@@ -19,6 +19,7 @@ const Registration = require('../models/Registration');
 const Ticket = require('../models/Ticket');
 const User = require('../models/User');
 const { EVENT_STATUS, REGISTRATION_STATUS, REGISTRATION_TYPES, TEAM_STATUS } = require('../utils/constants');
+const { sendRegistrationConfirmationEmail } = require('../utils/emailService');
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -56,8 +57,11 @@ const issueTicket = async (eventId, participantId) => {
   return { registration, ticket };
 };
 
-/** Mark team complete and issue registrations+tickets for all members */
+/** Mark team complete and issue registrations+tickets for all members, then email each */
 const completeTeam = async (team) => {
+  // Populate event for email template
+  const event = await Event.findById(team.eventId);
+
   const results = [];
   for (const member of team.members) {
     // Skip if already registered (idempotent)
@@ -68,6 +72,22 @@ const completeTeam = async (team) => {
     if (!existing) {
       const r = await issueTicket(team.eventId, member.userId);
       results.push(r);
+
+      // Send confirmation email with QR-code ticket to this member
+      if (event) {
+        try {
+          const participantDoc = await User.findById(member.userId).select('firstName lastName email');
+          if (participantDoc) {
+            await sendRegistrationConfirmationEmail(
+              { email: participantDoc.email, name: `${participantDoc.firstName} ${participantDoc.lastName}`.trim() },
+              event,
+              r.ticket
+            );
+          }
+        } catch (emailErr) {
+          console.warn(`Team completion email failed for member ${member.userId} (non-fatal):`, emailErr.message);
+        }
+      }
     }
   }
   team.status = TEAM_STATUS.COMPLETE;

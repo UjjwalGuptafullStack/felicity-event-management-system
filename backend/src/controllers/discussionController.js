@@ -6,6 +6,7 @@
 
 const DiscussionMessage = require('../models/DiscussionMessage');
 const Registration = require('../models/Registration');
+const Team = require('../models/Team');
 const Event = require('../models/Event');
 const User = require('../models/User');
 const Organizer = require('../models/Organizer');
@@ -60,19 +61,20 @@ const postMessage = async (req, res) => {
       senderName = organizer.name;
       senderType = 'organizer';
     } else {
-      // Verify participant is registered for event
-      const registration = await Registration.findOne({
-        eventId,
-        participantId: senderId
-      });
+      // Verify participant is registered for event OR is a member of any non-cancelled team for the event
+      const [registration, team] = await Promise.all([
+        Registration.findOne({ eventId, participantId: senderId }),
+        Team.findOne({ eventId, 'members.userId': senderId, status: { $ne: 'cancelled' } })
+      ]);
 
-      if (!registration) {
+      if (!registration && !team) {
         return res.status(403).json({
           success: false,
           message: 'Only registered participants can post messages'
         });
       }
 
+      // Discussion is anonymous — store a placeholder, display as Anonymous on client
       const user = await User.findById(senderId);
       senderName = `${user.firstName} ${user.lastName}`;
       senderType = 'participant';
