@@ -76,6 +76,9 @@ function BrowseEvents() {
     });
   };
 
+  const hasInterests = userInterests.length > 0;
+  const recommendedCount = events.filter(isRecommendedForUser).length;
+
   // Sort: when on "all", recommended events float to top; then by startDate ascending
   const sortedEvents = [...events].sort((a, b) => {
     if (activeFilter === 'all' && hasInterests) {
@@ -113,9 +116,6 @@ function BrowseEvents() {
       </div>
     );
   }
-
-  const hasInterests = userInterests.length > 0;
-  const recommendedCount = events.filter(isRecommendedForUser).length;
 
   const filterTabs = [
     { key: 'all', label: 'All Events' },
