@@ -158,27 +158,27 @@ export default function TeamChat() {
 
     const onDisconnect = () => setConnected(false);
 
-    const onJoined = ({ onlineUsers: online }) => {
-      setOnlineUsers(online || []);
+    const onJoined = () => {
+      // joined-team confirm; online presence arrives via presence-update
     };
 
     const onNewMessage = (msg) => {
       setMessages(prev => [...prev, msg]);
     };
 
-    const onOnlineUpdate = ({ onlineUsers: online }) => {
+    const onOnlineUpdate = ({ online }) => {
       setOnlineUsers(online || []);
     };
 
-    const onTyping = ({ senderId, senderName }) => {
-      if (senderId === myId) return;
+    const onTyping = ({ userId, name }) => {
+      if (userId === myId) return;
       setTypingUsers(prev =>
-        prev.find(u => u.id === senderId) ? prev : [...prev, { id: senderId, name: senderName }]
+        prev.find(u => u.id === userId) ? prev : [...prev, { id: userId, name }]
       );
     };
 
-    const onStopTyping = ({ senderId }) => {
-      setTypingUsers(prev => prev.filter(u => u.id !== senderId));
+    const onStopTyping = ({ userId }) => {
+      setTypingUsers(prev => prev.filter(u => u.id !== userId));
     };
 
     const onError = ({ message }) => setSockErr(message);
@@ -190,24 +190,24 @@ export default function TeamChat() {
     socket.on('connect',          onConnect);
     socket.on('connect_error',    onConnectError);
     socket.on('disconnect',       onDisconnect);
-    socket.on('team-joined',      onJoined);
+    socket.on('joined-team',      onJoined);
     socket.on('new-message',      onNewMessage);
-    socket.on('online-update',    onOnlineUpdate);
+    socket.on('presence-update',  onOnlineUpdate);
     socket.on('user-typing',      onTyping);
     socket.on('user-stop-typing', onStopTyping);
-    socket.on('error',            onError);
+    socket.on('chat-error',       onError);
 
     return () => {
       socket.emit('leave-team', { teamId });
       socket.off('connect',          onConnect);
       socket.off('connect_error',    onConnectError);
       socket.off('disconnect',       onDisconnect);
-      socket.off('team-joined',      onJoined);
+      socket.off('joined-team',      onJoined);
       socket.off('new-message',      onNewMessage);
-      socket.off('online-update',    onOnlineUpdate);
+      socket.off('presence-update',  onOnlineUpdate);
       socket.off('user-typing',      onTyping);
       socket.off('user-stop-typing', onStopTyping);
-      socket.off('error',            onError);
+      socket.off('chat-error',       onError);
     };
   }, [teamId, myId]);
 
@@ -264,7 +264,8 @@ export default function TeamChat() {
     if (!socket) return;
 
     setSending(true);
-    socket.emit('send-message', { teamId, content }, () => setSending(false));
+    socket.emit('send-message', { teamId, content });
+    setSending(false);
     setText('');
 
     // stop typing

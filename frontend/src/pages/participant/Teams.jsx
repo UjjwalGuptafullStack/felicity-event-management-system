@@ -241,8 +241,8 @@ function TeamCard({ team: summary, onRefresh, currentUserId }) {
 
           {/* Actions */}
           <div className="flex flex-wrap gap-2 pt-1">
-            {/* Chat button — only for complete teams */}
-            {t.status === 'complete' && (
+            {/* Chat button — available for all active team members */}
+            {t.status !== 'cancelled' && (
               <button
                 onClick={() => navigate(`/participant/teams/${summary.id}/chat`)}
                 className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary/10 border border-primary/20 text-primary hover:bg-primary/20 text-xs font-semibold transition-colors"

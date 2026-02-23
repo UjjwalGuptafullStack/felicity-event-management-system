@@ -322,8 +322,12 @@ const registerForEvent = async (req, res) => {
     // 5. Send confirmation email (non-blocking)
     let emailPreviewUrl = null;
     try {
-      const participant = await User.findById(participantId).select('name email');
-      if (participant) {
+      const participantDoc = await User.findById(participantId).select('firstName lastName email');
+      if (participantDoc) {
+        const participant = {
+          email: participantDoc.email,
+          name: `${participantDoc.firstName} ${participantDoc.lastName}`.trim()
+        };
         const emailResult = await sendRegistrationConfirmationEmail(participant, event, ticket);
         if (emailResult && emailResult.previewUrl) {
           emailPreviewUrl = emailResult.previewUrl;
@@ -662,8 +666,12 @@ const purchaseMerchandise = async (req, res) => {
 
     // Send confirmation email (non-blocking)
     try {
-      const participant = await User.findById(participantId).select('name email');
-      if (participant) {
+      const participantDoc = await User.findById(participantId).select('firstName lastName email');
+      if (participantDoc) {
+        const participant = {
+          email: participantDoc.email,
+          name: `${participantDoc.firstName} ${participantDoc.lastName}`.trim()
+        };
         await sendRegistrationConfirmationEmail(participant, event, ticket);
       }
     } catch (emailErr) {

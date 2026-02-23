@@ -96,8 +96,6 @@ function setupTeamChat(httpServer) {
         const Team = require('../models/Team');
         const team = await Team.findById(teamId);
         if (!team) return socket.emit('chat-error', { message: 'Team not found' });
-        if (team.status !== 'complete')
-          return socket.emit('chat-error', { message: 'Chat is only available once the team is complete' });
         if (!isMemberOf(team, socket.userId))
           return socket.emit('chat-error', { message: 'Not a member of this team' });
 
@@ -132,7 +130,7 @@ function setupTeamChat(httpServer) {
         const ChatMessage = require('../models/ChatMessage');
 
         const team = await Team.findById(teamId);
-        if (!team || team.status !== 'complete' || !isMemberOf(team, socket.userId)) return;
+        if (!team || !isMemberOf(team, socket.userId)) return;
 
         const msg = await ChatMessage.create({
           teamId,
@@ -168,7 +166,7 @@ function setupTeamChat(httpServer) {
         const ChatMessage = require('../models/ChatMessage');
 
         const team = await Team.findById(teamId);
-        if (!team || team.status !== 'complete' || !isMemberOf(team, socket.userId)) return;
+        if (!team || !isMemberOf(team, socket.userId)) return;
 
         const msg = await ChatMessage.create({
           teamId,
