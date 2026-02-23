@@ -1,6 +1,108 @@
 ====================================================================
-  FELICITY EVENT MANAGEMENT SYSTEM — DEPLOYMENT GUIDE
+  FELICITY EVENT MANAGEMENT SYSTEM — DEPLOYMENT
   DASS 2025–26, IIIT Hyderabad
+====================================================================
+
+--------------------------------------------------------------------
+LIVE DEPLOYMENT
+--------------------------------------------------------------------
+  Frontend (Vercel):
+    https://felicity-event-management-system-tawny.vercel.app
+
+  Backend API (Render):
+    https://felicity-event-management-system-xqor.onrender.com
+
+  Socket.io (team chat) — same host as backend:
+    wss://felicity-event-management-system-xqor.onrender.com
+
+  Login routes (frontend):
+    /login/participant   — IIIT participant login
+    /register            — Participant self-registration
+    /login/organizer     — Organizer login (credentials from admin)
+    /login/admin         — Admin login
+
+
+--------------------------------------------------------------------
+SUBMISSION ZIP STRUCTURE
+--------------------------------------------------------------------
+  <roll_no>/
+  |-- backend/
+  |-- frontend/
+  |-- README.md
+  |-- deployment.txt
+
+
+--------------------------------------------------------------------
+REPOSITORY STRUCTURE
+--------------------------------------------------------------------
+  felicity-event-management-system/
+  ├── README.md
+  ├── deployment.txt
+  ├── backend/
+  │   ├── server.js
+  │   ├── package.json
+  │   ├── scripts/
+  │   │   ├── seed.js
+  │   │   └── updateOrganizerEmails.js
+  │   └── src/
+  │       ├── config/          db.js  env.js
+  │       ├── controllers/     adminController.js  attendanceController.js
+  │       │                    authController.js  chatController.js
+  │       │                    discussionController.js  eventController.js
+  │       │                    feedbackController.js  merchandiseController.js
+  │       │                    organizerDiscoveryController.js
+  │       │                    organizerProfileController.js
+  │       │                    participantEventController.js
+  │       │                    passwordResetController.js
+  │       │                    publicStatsController.js  teamController.js
+  │       │                    userController.js
+  │       ├── middleware/      authContracts.js
+  │       ├── models/          Attendance.js  ChatMessage.js
+  │       │                    DiscussionMessage.js  Event.js  Feedback.js
+  │       │                    Organizer.js  PasswordResetRequest.js
+  │       │                    Registration.js  Team.js  Ticket.js  User.js
+  │       ├── routes/          adminRoutes.js  authRoutes.js  chatRoutes.js
+  │       │                    organizerRoutes.js  part2Routes.js
+  │       │                    participantRoutes.js  publicRoutes.js
+  │       ├── sockets/         teamChat.js
+  │       └── utils/           accessControl.js  authHelpers.js
+  │                            bootstrap.js  constants.js  emailService.js
+  └── frontend/
+      ├── index.html
+      ├── vite.config.js
+      ├── vercel.json
+      ├── package.json
+      └── src/
+          ├── App.jsx  main.jsx
+          ├── api/             admin.js  auth.js  axios.js  chat.js
+          │                    discussion.js  events.js  organizer.js
+          │                    participant.js  public.js
+          ├── components/      OrganizerNav.jsx  ParticipantNav.jsx
+          │   └── design-system/  EventCard.jsx  FloatingActionButton.jsx
+          │                       GradientButton.jsx  StatsCard.jsx
+          ├── context/         AuthContext.jsx
+          ├── layouts/         OrganizerLayout.jsx  ParticipantLayout.jsx
+          ├── pages/
+          │   ├── Home.jsx
+          │   ├── admin/       Dashboard.jsx  ManageOrganizers.jsx
+          │   │                PasswordResetRequests.jsx
+          │   ├── auth/        AdminLogin.jsx  OrganizerLogin.jsx
+          │   │                OrganizerPasswordReset.jsx
+          │   │                ParticipantLogin.jsx  Register.jsx
+          │   ├── organizer/   AttendanceScanner.jsx  Dashboard.jsx
+          │   │                EventDetail.jsx  Events.jsx
+          │   │                MerchandiseApprovals.jsx  Profile.jsx
+          │   └── participant/ BrowseEvents.jsx  EventDetails.jsx
+          │                    EventDiscussion.jsx  NewDashboard.jsx
+          │                    Onboarding.jsx  OrganizerDetail.jsx
+          │                    Organizers.jsx  Profile.jsx
+          │                    TeamChat.jsx  Teams.jsx
+          ├── routes/          ProtectedRoute.jsx  RoleRoute.jsx
+          ├── sockets/         socket.js
+          ├── styles/          fonts.css  tailwind.css  theme.css
+          └── utils/           cn.js
+
+
 ====================================================================
 
 

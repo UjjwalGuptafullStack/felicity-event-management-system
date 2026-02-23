@@ -1,18 +1,166 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getOrganizerDetails, followOrganizer, unfollowOrganizer } from '../../api/participant';
-import { EventCard } from '../../components/design-system/EventCard';
 import { GradientButton } from '../../components/design-system/GradientButton';
-import { Users, Mail, Tag, Heart, Calendar, ArrowLeft } from 'lucide-react';
+import { Users, Mail, Tag, Heart, Calendar, ArrowLeft, Radio, Clock, CheckCircle2, Lock } from 'lucide-react';
 import { motion } from 'motion/react';
+
+const CATEGORY_LABELS = {
+  tech: 'Technology & Coding',
+  sports: 'Sports & Fitness',
+  cultural: 'Cultural & Arts',
+  music: 'Music',
+  dance: 'Dance',
+  literature: 'Literature & Quiz',
+  gaming: 'Gaming',
+  science: 'Science & Research',
+  entrepreneurship: 'Entrepreneurship',
+  design: 'Design & Creativity',
+  photography: 'Photography & Film',
+  social: 'Social & Community',
+};
+
+const TABS = [
+  {
+    key: 'open',
+    label: 'Registration Open',
+    icon: Calendar,
+    color: 'text-green-500',
+    activeBg: 'bg-green-500/10 text-green-600 border-green-500/30',
+    badge: 'bg-green-500',
+  },
+  {
+    key: 'live',
+    label: 'Live Now',
+    icon: Radio,
+    color: 'text-red-500',
+    activeBg: 'bg-red-500/10 text-red-600 border-red-500/30',
+    badge: 'bg-red-500',
+  },
+  {
+    key: 'closed',
+    label: 'Registration Closed',
+    icon: Lock,
+    color: 'text-amber-500',
+    activeBg: 'bg-amber-500/10 text-amber-600 border-amber-500/30',
+    badge: 'bg-amber-500',
+  },
+  {
+    key: 'finished',
+    label: 'Finished',
+    icon: CheckCircle2,
+    color: 'text-muted-foreground',
+    activeBg: 'bg-muted/50 text-foreground border-border',
+    badge: 'bg-muted-foreground',
+  },
+];
+
+function categoriseEvents(events) {
+  const now = new Date();
+  const open = [];
+  const live = [];
+  const closed = [];
+  const finished = [];
+
+  for (const e of events) {
+    const start = e.startDate ? new Date(e.startDate) : null;
+    const end = e.endDate ? new Date(e.endDate) : null;
+    const regDeadline = e.registrationDeadline ? new Date(e.registrationDeadline) : null;
+
+    if (end && end < now) {
+      finished.push(e);
+    } else if (start && start <= now && (!end || end >= now)) {
+      live.push(e);
+    } else if (start && start > now) {
+      if (regDeadline && regDeadline > now) {
+        open.push(e);
+      } else {
+        closed.push(e);
+      }
+    } else {
+      // fallback: no startDate
+      if (regDeadline && regDeadline > now) {
+        open.push(e);
+      } else {
+        finished.push(e);
+      }
+    }
+  }
+
+  return { open, live, closed, finished };
+}
+
+function EventRow({ event, idx, onClick }) {
+  const now = new Date();
+  const regDeadline = event.registrationDeadline ? new Date(event.registrationDeadline) : null;
+  const regOpen = regDeadline && regDeadline > now;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: idx * 0.04 }}
+      onClick={onClick}
+      className="flex items-center gap-4 p-4 bg-card border border-border rounded-xl cursor-pointer hover:border-primary/30 hover:bg-card/80 transition-all group"
+    >
+      {/* Colour dot */}
+      <div className={`w-2 h-2 rounded-full shrink-0 ${
+        idx % 4 === 0 ? 'bg-primary' :
+        idx % 4 === 1 ? 'bg-secondary' :
+        idx % 4 === 2 ? 'bg-accent' : 'bg-primary-light'
+      }`} />
+      <div className="flex-1 min-w-0">
+        <h4 className="font-semibold text-foreground group-hover:text-primary transition-colors truncate">
+          {event.name}
+        </h4>
+        <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-0.5 text-xs text-muted-foreground">
+          {event.startDate && (
+            <span className="flex items-center gap-1">
+              <Calendar className="w-3 h-3" />
+              {new Date(event.startDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+            </span>
+          )}
+          {regDeadline && (
+            <span className="flex items-center gap-1">
+              <Clock className="w-3 h-3" />
+              Reg. deadline: {regDeadline.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+            </span>
+          )}
+          {event.registrationFee > 0 && (
+            <span>₹{event.registrationFee}</span>
+          )}
+          {event.type === 'merchandise' && (
+            <span className="px-1.5 py-0.5 bg-secondary/10 text-secondary rounded text-[10px] font-medium">Merch</span>
+          )}
+        </div>
+        {event.categories?.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-1">
+            {event.categories.slice(0, 3).map(c => (
+              <span key={c} className="text-[10px] px-1.5 py-0.5 bg-primary/10 text-primary rounded-full">
+                {CATEGORY_LABELS[c] || c}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+      {regOpen && (
+        <span className="text-[10px] font-semibold px-2 py-1 bg-green-500/10 text-green-600 rounded-full whitespace-nowrap">
+          Register Now
+        </span>
+      )}
+    </motion.div>
+  );
+}
 
 function OrganizerDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [organizer, setOrganizer] = useState(null);
+  const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
-  const [activeTab, setActiveTab] = useState('upcoming');
+  const [activeTab, setActiveTab] = useState('open');
 
   useEffect(() => {
     fetchOrganizerDetails();
@@ -21,10 +169,19 @@ function OrganizerDetail() {
   const fetchOrganizerDetails = async () => {
     try {
       const response = await getOrganizerDetails(id);
-      setOrganizer(response.data.organizer);
-      setIsFollowing(response.data.organizer?.isFollowed || false);
-    } catch (error) {
-      console.error('Error fetching organizer details:', error);
+      const org = response.data.organizer;
+      setOrganizer(org);
+      setIsFollowing(org?.isFollowed || false);
+
+      // Backend returns events as a flat array (or legacy { upcoming, past })
+      const evData = response.data.events;
+      if (Array.isArray(evData)) {
+        setEvents(evData);
+      } else if (evData && typeof evData === 'object') {
+        setEvents([...(evData.upcoming || []), ...(evData.past || [])]);
+      }
+    } catch {
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -39,8 +196,8 @@ function OrganizerDetail() {
         await followOrganizer(id);
         setIsFollowing(true);
       }
-    } catch (error) {
-      console.error('Error toggling follow:', error);
+    } catch (err) {
+      console.error('Error toggling follow:', err);
     }
   };
 
@@ -48,14 +205,14 @@ function OrganizerDetail() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading organizer details...</p>
+          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading organizer...</p>
         </div>
       </div>
     );
   }
 
-  if (!organizer) {
+  if (error || !organizer) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
@@ -69,12 +226,16 @@ function OrganizerDetail() {
     );
   }
 
-  const upcomingEvents = organizer.events?.filter(e => new Date(e.date) > new Date()) || [];
-  const pastEvents = organizer.events?.filter(e => new Date(e.date) <= new Date()) || [];
+  const categorised = categoriseEvents(events);
+
+  // Auto-switch to a non-empty tab on load after events arrive
+  const firstNonEmptyTab = TABS.find(t => categorised[t.key].length > 0)?.key || 'open';
+  const displayTab = categorised[activeTab] ? activeTab : firstNonEmptyTab;
+  const currentEvents = categorised[displayTab] || [];
 
   return (
-    <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-10 max-w-6xl">
-      {/* Back Button */}
+    <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-10 max-w-5xl">
+      {/* Back */}
       <motion.button
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
@@ -85,128 +246,125 @@ function OrganizerDetail() {
         <span>Back to Organizers</span>
       </motion.button>
 
-      {/* Organizer Header */}
+      {/* Organizer card */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="bg-card border border-border rounded-2xl overflow-hidden mb-8"
       >
-        {/* Banner */}
-        <div className="h-48 bg-gradient-to-br from-primary to-primary-light relative overflow-hidden">
+        <div className="h-40 bg-gradient-to-br from-primary to-primary-light relative overflow-hidden">
           <div className="absolute inset-0 opacity-10">
             <Users className="w-64 h-64 absolute -bottom-16 -right-16 text-white" />
           </div>
         </div>
-
-        {/* Content */}
         <div className="p-6 sm:p-8">
-          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 sm:gap-6">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
             <div className="flex-1 min-w-0">
-              <h1 className="text-3xl sm:text-4xl font-bold text-foreground mb-3">
+              <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">
                 {organizer.name}
               </h1>
-              
               {organizer.category && (
-                <div className="flex items-center gap-2 text-muted-foreground mb-3">
-                  <Tag className="w-4 h-4" />
+                <div className="flex items-center gap-2 text-muted-foreground mb-3 text-sm">
+                  <Tag className="w-3.5 h-3.5" />
                   <span>{organizer.category}</span>
                 </div>
               )}
-
               {organizer.description && (
-                <p className="text-muted-foreground leading-relaxed mb-4">
+                <p className="text-muted-foreground text-sm leading-relaxed mb-3">
                   {organizer.description}
                 </p>
               )}
-
               {organizer.contactEmail && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Mail className="w-4 h-4" />
-                  <a 
-                    href={`mailto:${organizer.contactEmail}`}
-                    className="hover:text-primary transition-colors"
-                  >
+                  <Mail className="w-3.5 h-3.5" />
+                  <a href={`mailto:${organizer.contactEmail}`} className="hover:text-primary transition-colors">
                     {organizer.contactEmail}
                   </a>
                 </div>
               )}
             </div>
-
-            {/* Follow Button */}
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={handleToggleFollow}
-              className={`px-6 py-3 rounded-xl font-semibold transition-all flex items-center gap-2 whitespace-nowrap ${
+              className={`px-5 py-2.5 rounded-xl font-semibold transition-all flex items-center gap-2 whitespace-nowrap text-sm ${
                 isFollowing
                   ? 'bg-destructive/10 text-destructive hover:bg-destructive/20 border border-destructive/20'
                   : 'bg-primary text-white hover:bg-primary/90'
               }`}
             >
-              <Heart className={`w-5 h-5 ${isFollowing ? 'fill-current' : ''}`} />
+              <Heart className={`w-4 h-4 ${isFollowing ? 'fill-current' : ''}`} />
               {isFollowing ? 'Unfollow' : 'Follow'}
             </motion.button>
+          </div>
+
+          {/* Stats row */}
+          <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t border-border">
+            {TABS.map(tab => (
+              <div key={tab.key} className="text-center">
+                <div className="text-lg font-bold text-foreground">{categorised[tab.key].length}</div>
+                <div className="text-[11px] text-muted-foreground">{tab.label}</div>
+              </div>
+            ))}
           </div>
         </div>
       </motion.div>
 
-      {/* Events Section */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-      >
-        <h2 className="text-2xl font-bold text-foreground mb-6 flex items-center gap-3">
-          <Calendar className="w-6 h-6 text-primary" />
+      {/* Events section */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+        <h2 className="text-xl font-bold text-foreground mb-4 flex items-center gap-2">
+          <Calendar className="w-5 h-5 text-primary" />
           Events
         </h2>
 
-        {/* Tabs */}
-        <div className="flex gap-2 mb-6 border-b border-border">
-          <button
-            onClick={() => setActiveTab('upcoming')}
-            className={`px-4 py-2 font-medium transition-colors ${
-              activeTab === 'upcoming'
-                ? 'text-primary border-b-2 border-primary'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            Upcoming ({upcomingEvents.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('past')}
-            className={`px-4 py-2 font-medium transition-colors ${
-              activeTab === 'past'
-                ? 'text-primary border-b-2 border-primary'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            Past ({pastEvents.length})
-          </button>
+        {/* Tab bar */}
+        <div className="flex flex-wrap gap-2 mb-6">
+          {TABS.map(tab => {
+            const Icon = tab.icon;
+            const count = categorised[tab.key].length;
+            const isActive = displayTab === tab.key;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border transition-all whitespace-nowrap ${
+                  isActive
+                    ? tab.activeBg
+                    : 'bg-card border-border text-muted-foreground hover:border-primary/30 hover:text-foreground'
+                }`}
+              >
+                <Icon className={`w-3.5 h-3.5 ${isActive ? '' : tab.color}`} />
+                {tab.label}
+                <span className={`ml-0.5 text-xs px-1.5 py-0.5 rounded-full ${
+                  isActive ? 'bg-current/10' : 'bg-muted'
+                } text-inherit`}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
-        {/* Events Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {activeTab === 'upcoming' && upcomingEvents.length === 0 && (
-            <div className="col-span-full text-center py-16">
-              <Calendar className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
-              <p className="text-muted-foreground font-medium">No upcoming events</p>
-            </div>
-          )}
-          {activeTab === 'past' && pastEvents.length === 0 && (
-            <div className="col-span-full text-center py-16">
-              <Calendar className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
-              <p className="text-muted-foreground font-medium">No past events</p>
-            </div>
-          )}
-          {(activeTab === 'upcoming' ? upcomingEvents : pastEvents).map((event, idx) => (
-            <EventCard
-              key={event._id}
-              event={event}
-              onClick={() => navigate(`/participant/events/${event._id}`)}
-            />
-          ))}
-        </div>
+        {/* Event list */}
+        {currentEvents.length === 0 ? (
+          <div className="text-center py-16 border border-dashed border-border rounded-2xl">
+            <Calendar className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
+            <p className="text-muted-foreground font-medium">
+              No {TABS.find(t => t.key === displayTab)?.label.toLowerCase()} events
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {currentEvents.map((event, idx) => (
+              <EventRow
+                key={event._id || event.id}
+                event={event}
+                idx={idx}
+                onClick={() => navigate(`/participant/events/${event._id || event.id}`)}
+              />
+            ))}
+          </div>
+        )}
       </motion.div>
     </div>
   );

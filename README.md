@@ -4,20 +4,30 @@
 
 ---
 
+## 🚀 Live Deployment
+
+| Service | URL |
+|---|---|
+| **Frontend** (Vercel) | https://felicity-event-management-system-tawny.vercel.app |
+| **Backend API** (Render) | https://felicity-event-management-system-xqor.onrender.com |
+
+---
+
 ## Table of Contents
 
 1. [Project Overview](#1-project-overview)
 2. [Technology Stack](#2-technology-stack)
 3. [Architecture](#3-architecture)
-4. [Setup & Running](#4-setup--running)
-5. [Authentication & Authorization](#5-authentication--authorization)
-6. [Database Models](#6-database-models)
-7. [Part 1 – Core Features](#7-part-1--core-features)
-8. [Part 2 – Advanced Features](#8-part-2--advanced-features)
-9. [API Reference](#9-api-reference)
-10. [Frontend Pages & Components](#10-frontend-pages--components)
-11. [Email System](#11-email-system)
-12. [Design System & Theme](#12-design-system--theme)
+4. [Repository Structure](#4-repository-structure)
+5. [Setup & Running](#5-setup--running)
+6. [Authentication & Authorization](#6-authentication--authorization)
+7. [Database Models](#7-database-models)
+8. [Part 1 – Core Features](#8-part-1--core-features)
+9. [Part 2 – Advanced Features](#9-part-2--advanced-features)
+10. [API Reference](#10-api-reference)
+11. [Frontend Pages & Components](#11-frontend-pages--components)
+12. [Email System](#12-email-system)
+13. [Design System & Theme](#13-design-system--theme)
 
 ---
 
@@ -78,6 +88,160 @@ Felicity EMS is a full-stack event management platform that supports three disti
 ---
 
 ## 3. Architecture
+
+---
+
+## 4. Repository Structure
+
+```
+felicity-event-management-system/
+├── README.md
+├── deployment.txt
+├── backend/
+│   ├── server.js                    # Express + Socket.io entry point
+│   ├── package.json
+│   ├── .env.example
+│   ├── scripts/
+│   │   ├── seed.js                  # Seeds organizers & sample events
+│   │   └── updateOrganizerEmails.js
+│   └── src/
+│       ├── config/
+│       │   ├── db.js                # Mongoose connection
+│       │   └── env.js               # Validated env vars
+│       ├── controllers/
+│       │   ├── adminController.js
+│       │   ├── attendanceController.js
+│       │   ├── authController.js
+│       │   ├── chatController.js
+│       │   ├── discussionController.js
+│       │   ├── eventController.js
+│       │   ├── feedbackController.js
+│       │   ├── merchandiseController.js
+│       │   ├── organizerDiscoveryController.js
+│       │   ├── organizerProfileController.js
+│       │   ├── participantEventController.js
+│       │   ├── passwordResetController.js
+│       │   ├── publicStatsController.js
+│       │   ├── teamController.js
+│       │   └── userController.js
+│       ├── middleware/
+│       │   └── authContracts.js     # JWT verify + role guards
+│       ├── models/
+│       │   ├── Attendance.js
+│       │   ├── ChatMessage.js
+│       │   ├── DiscussionMessage.js
+│       │   ├── Event.js
+│       │   ├── Feedback.js
+│       │   ├── Organizer.js
+│       │   ├── PasswordResetRequest.js
+│       │   ├── Registration.js
+│       │   ├── Team.js
+│       │   ├── Ticket.js
+│       │   └── User.js
+│       ├── routes/
+│       │   ├── adminRoutes.js
+│       │   ├── authRoutes.js
+│       │   ├── chatRoutes.js
+│       │   ├── organizerRoutes.js
+│       │   ├── part2Routes.js
+│       │   ├── participantRoutes.js
+│       │   └── publicRoutes.js
+│       ├── sockets/
+│       │   └── teamChat.js          # Socket.io team chat handlers
+│       └── utils/
+│           ├── accessControl.js
+│           ├── authHelpers.js
+│           ├── bootstrap.js         # Admin seeding on first start
+│           ├── constants.js
+│           └── emailService.js      # Nodemailer + QR attachment
+├── frontend/
+│   ├── index.html
+│   ├── vite.config.js
+│   ├── package.json
+│   ├── vercel.json                  # SPA redirect rules for Vercel
+│   └── src/
+│       ├── App.jsx                  # Router root
+│       ├── main.jsx
+│       ├── api/                     # Axios API wrappers
+│       │   ├── admin.js
+│       │   ├── auth.js
+│       │   ├── axios.js             # Base instance (baseURL + auth header)
+│       │   ├── chat.js
+│       │   ├── discussion.js
+│       │   ├── events.js
+│       │   ├── organizer.js
+│       │   ├── participant.js
+│       │   └── public.js
+│       ├── components/
+│       │   ├── OrganizerNav.jsx
+│       │   ├── ParticipantNav.jsx
+│       │   └── design-system/
+│       │       ├── EventCard.jsx
+│       │       ├── FloatingActionButton.jsx
+│       │       ├── GradientButton.jsx
+│       │       └── StatsCard.jsx
+│       ├── context/
+│       │   └── AuthContext.jsx
+│       ├── layouts/
+│       │   ├── OrganizerLayout.jsx
+│       │   └── ParticipantLayout.jsx
+│       ├── pages/
+│       │   ├── Home.jsx
+│       │   ├── admin/
+│       │   │   ├── Dashboard.jsx
+│       │   │   ├── ManageOrganizers.jsx
+│       │   │   └── PasswordResetRequests.jsx
+│       │   ├── auth/
+│       │   │   ├── AdminLogin.jsx
+│       │   │   ├── OrganizerLogin.jsx
+│       │   │   ├── OrganizerPasswordReset.jsx
+│       │   │   ├── ParticipantLogin.jsx
+│       │   │   └── Register.jsx
+│       │   ├── organizer/
+│       │   │   ├── AttendanceScanner.jsx
+│       │   │   ├── Dashboard.jsx
+│       │   │   ├── EventDetail.jsx
+│       │   │   ├── Events.jsx       # Create + Ongoing tabs
+│       │   │   ├── MerchandiseApprovals.jsx
+│       │   │   └── Profile.jsx
+│       │   └── participant/
+│       │       ├── BrowseEvents.jsx # Registration-open / closed split
+│       │       ├── EventDetails.jsx
+│       │       ├── EventDiscussion.jsx
+│       │       ├── NewDashboard.jsx
+│       │       ├── Onboarding.jsx
+│       │       ├── OrganizerDetail.jsx  # Club profile + 4-tab events
+│       │       ├── Organizers.jsx
+│       │       ├── Profile.jsx
+│       │       ├── TeamChat.jsx
+│       │       └── Teams.jsx
+│       ├── routes/
+│       │   ├── ProtectedRoute.jsx
+│       │   └── RoleRoute.jsx
+│       ├── sockets/
+│       │   └── socket.js
+│       ├── styles/
+│       │   ├── fonts.css
+│       │   ├── tailwind.css
+│       │   └── theme.css
+│       └── utils/
+│           └── cn.js
+└── docs/
+    ├── 01-architecture.txt
+    ├── 02-backend-models.txt
+    ├── 03-backend-controllers.txt
+    ├── 04-backend-routes.txt
+    ├── 05-frontend-pages.txt
+    ├── 06-frontend-api.txt
+    ├── 07-socket-chat.txt
+    ├── 08-auth-flow.txt
+    ├── 09-features-overview.txt
+    └── 10-seeded_clubs.txt
+```
+
+---
+
+## 4. Architecture (detail)
 
 ```
 felicity-event-management-system/

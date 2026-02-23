@@ -35,6 +35,7 @@ const listOrganizers = async (req, res) => {
       count: organizers.length,
       organizers: organizers.map(org => ({
         id: org._id,
+        _id: org._id,
         name: org.name,
         category: org.category,
         description: org.description,
@@ -77,31 +78,19 @@ const getOrganizerDetails = async (req, res) => {
       });
     }
 
-    // Fetch organizer's published events
-    const now = new Date();
-    
-    const upcomingEvents = await Event.find({
+    // Fetch all non-draft events for this organizer (flat list; frontend categorises)
+    const allEvents = await Event.find({
       organizerId: organizer._id,
-      status: EVENT_STATUS.PUBLISHED,
-      startDate: { $gte: now }
+      status: { $in: [EVENT_STATUS.PUBLISHED, EVENT_STATUS.ONGOING, EVENT_STATUS.CLOSED] }
     })
-      .select('name type startDate endDate registrationDeadline registrationFee tags')
-      .sort({ startDate: 1 })
-      .limit(10);
-
-    const pastEvents = await Event.find({
-      organizerId: organizer._id,
-      status: { $in: [EVENT_STATUS.PUBLISHED, EVENT_STATUS.ONGOING, EVENT_STATUS.CLOSED] },
-      endDate: { $lt: now }
-    })
-      .select('name type startDate endDate')
-      .sort({ endDate: -1 })
-      .limit(10);
+      .select('name type startDate endDate registrationDeadline registrationFee registrationLimit tags categories description status')
+      .sort({ startDate: -1 });
 
     res.status(200).json({
       success: true,
       organizer: {
         id: organizer._id,
+        _id: organizer._id,
         name: organizer.name,
         category: organizer.category,
         description: organizer.description,
@@ -109,25 +98,21 @@ const getOrganizerDetails = async (req, res) => {
         contactNumber: organizer.contactNumber,
         createdAt: organizer.createdAt
       },
-      events: {
-        upcoming: upcomingEvents.map(e => ({
-          id: e._id,
-          name: e.name,
-          type: e.type,
-          startDate: e.startDate,
-          endDate: e.endDate,
-          registrationDeadline: e.registrationDeadline,
-          registrationFee: e.registrationFee,
-          tags: e.tags
-        })),
-        past: pastEvents.map(e => ({
-          id: e._id,
-          name: e.name,
-          type: e.type,
-          startDate: e.startDate,
-          endDate: e.endDate
-        }))
-      }
+      events: allEvents.map(e => ({
+        id: e._id,
+        _id: e._id,
+        name: e.name,
+        type: e.type,
+        startDate: e.startDate,
+        endDate: e.endDate,
+        registrationDeadline: e.registrationDeadline,
+        registrationFee: e.registrationFee,
+        registrationLimit: e.registrationLimit,
+        tags: e.tags,
+        categories: e.categories,
+        description: e.description,
+        status: e.status
+      }))
     });
   } catch (error) {
     console.error('Get organizer details error:', error);

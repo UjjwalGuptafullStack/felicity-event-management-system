@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { getAllEvents } from '../../api/events';
 import { getProfile } from '../../api/participant';
 import { motion } from 'motion/react';
-import { Calendar, Tag, Users, Search, Sparkles } from 'lucide-react';
+import { Calendar, Tag, Users, Search, Sparkles, Clock } from 'lucide-react';
 
 const CATEGORY_LABELS = {
   tech: 'Technology & Coding',
@@ -91,6 +91,8 @@ function BrowseEvents() {
     return aDate - bDate;
   });
 
+  const now = new Date();
+
   const filteredEvents = sortedEvents.filter(event => {
     const term = search.toLowerCase();
     const matchesSearch =
@@ -105,6 +107,14 @@ function BrowseEvents() {
 
     return matchesSearch && matchesFilter;
   });
+
+  // Split into open-registration and registration-closed groups
+  const openEvents = filteredEvents.filter(
+    event => event.registrationDeadline && new Date(event.registrationDeadline) > now
+  );
+  const closedEvents = filteredEvents.filter(
+    event => !event.registrationDeadline || new Date(event.registrationDeadline) <= now
+  );
 
   if (loading) {
     return (
@@ -177,69 +187,140 @@ function BrowseEvents() {
           <p className="text-sm text-muted-foreground mt-1">Try adjusting your search or filter</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filteredEvents.map((event, idx) => {
-            const isRecommended = hasInterests && isRecommendedForUser(event);
-            return (
-              <motion.div
-                key={event._id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.04 }}
-                onClick={() => navigate(`/participant/events/${event._id}`)}
-                className="bg-card border border-border rounded-2xl overflow-hidden cursor-pointer hover:border-primary/30 hover:-translate-y-1 transition-all group"
-              >
-                {/* Image / Color header */}
-                <div className={`h-36 bg-gradient-to-br relative overflow-hidden ${
-                  idx % 4 === 0 ? 'from-primary to-primary-light' :
-                  idx % 4 === 1 ? 'from-secondary to-secondary-light' :
-                  idx % 4 === 2 ? 'from-accent to-accent-light' :
-                  'from-primary-dark to-secondary'
-                }`}>
-                  {isRecommended && (
-                    <span className="absolute top-3 left-3 flex items-center gap-1 bg-white/20 backdrop-blur-sm text-white text-xs font-semibold px-2 py-1 rounded-full">
-                      <Sparkles className="w-3 h-3" />
-                      Recommended
-                    </span>
-                  )}
-                  {event.categories?.length > 0 && (
-                    <span className="absolute top-3 right-3 bg-black/30 backdrop-blur-sm text-white text-xs px-2 py-1 rounded-full">
-                      {CATEGORY_LABELS[event.categories[0]] || event.categories[0]}
-                    </span>
-                  )}
-                </div>
-
-                {/* Body */}
-                <div className="p-4">
-                  <h3 className="font-bold text-foreground mb-2 group-hover:text-primary transition-colors line-clamp-2">
-                    {event.name}
-                  </h3>
-                  {event.description && (
-                    <p className="text-xs text-muted-foreground line-clamp-2 mb-3">{event.description}</p>
-                  )}
-                  <div className="space-y-1 text-xs text-muted-foreground">
-                    <div className="flex items-center gap-1.5">
-                      <Calendar className="w-3.5 h-3.5 text-primary" />
-                      <span>{new Date(event.startDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <Users className="w-3.5 h-3.5 text-secondary" />
-                      <span>
-                        {event.registrationCount || 0}
-                        {event.registrationLimit ? ` / ${event.registrationLimit}` : ''} registered
-                      </span>
-                    </div>
-                    {event.eligibility && (
-                      <div className="flex items-center gap-1.5">
-                        <Tag className="w-3.5 h-3.5 text-accent" />
-                        <span>{event.eligibility}</span>
+        <div className="space-y-10">
+          {/* Open registration events */}
+          {openEvents.length > 0 && (
+            <section>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                {openEvents.map((event, idx) => {
+                  const isRecommended = hasInterests && isRecommendedForUser(event);
+                  return (
+                    <motion.div
+                      key={event._id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: idx * 0.04 }}
+                      onClick={() => navigate(`/participant/events/${event._id}`)}
+                      className="bg-card border border-border rounded-2xl overflow-hidden cursor-pointer hover:border-primary/30 hover:-translate-y-1 transition-all group"
+                    >
+                      <div className={`h-36 bg-gradient-to-br relative overflow-hidden ${
+                        idx % 4 === 0 ? 'from-primary to-primary-light' :
+                        idx % 4 === 1 ? 'from-secondary to-secondary-light' :
+                        idx % 4 === 2 ? 'from-accent to-accent-light' :
+                        'from-primary-dark to-secondary'
+                      }`}>
+                        {isRecommended && (
+                          <span className="absolute top-3 left-3 flex items-center gap-1 bg-white/20 backdrop-blur-sm text-white text-xs font-semibold px-2 py-1 rounded-full">
+                            <Sparkles className="w-3 h-3" />
+                            Recommended
+                          </span>
+                        )}
+                        {event.categories?.length > 0 && (
+                          <span className="absolute top-3 right-3 bg-black/30 backdrop-blur-sm text-white text-xs px-2 py-1 rounded-full">
+                            {CATEGORY_LABELS[event.categories[0]] || event.categories[0]}
+                          </span>
+                        )}
                       </div>
-                    )}
-                  </div>
-                </div>
-              </motion.div>
-            );
-          })}
+                      <div className="p-4">
+                        <h3 className="font-bold text-foreground mb-2 group-hover:text-primary transition-colors line-clamp-2">
+                          {event.name}
+                        </h3>
+                        {event.description && (
+                          <p className="text-xs text-muted-foreground line-clamp-2 mb-3">{event.description}</p>
+                        )}
+                        <div className="space-y-1 text-xs text-muted-foreground">
+                          <div className="flex items-center gap-1.5">
+                            <Calendar className="w-3.5 h-3.5 text-primary" />
+                            <span>{new Date(event.startDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <Users className="w-3.5 h-3.5 text-secondary" />
+                            <span>
+                              {event.registrationCount || 0}
+                              {event.registrationLimit ? ` / ${event.registrationLimit}` : ''} registered
+                            </span>
+                          </div>
+                          {event.eligibility && (
+                            <div className="flex items-center gap-1.5">
+                              <Tag className="w-3.5 h-3.5 text-accent" />
+                              <span>{event.eligibility}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
+          {/* Registration closed events */}
+          {closedEvents.length > 0 && (
+            <section>
+              <div className="flex items-center gap-3 mb-4">
+                <Clock className="w-4 h-4 text-muted-foreground" />
+                <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Registration Closed</h2>
+                <div className="flex-1 h-px bg-border" />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                {closedEvents.map((event, idx) => (
+                  <motion.div
+                    key={event._id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.04 }}
+                    onClick={() => navigate(`/participant/events/${event._id}`)}
+                    className="bg-card border border-border rounded-2xl overflow-hidden cursor-pointer hover:border-border/80 hover:-translate-y-0.5 transition-all group opacity-70"
+                  >
+                    <div className={`h-36 bg-gradient-to-br relative overflow-hidden grayscale ${
+                      idx % 4 === 0 ? 'from-primary to-primary-light' :
+                      idx % 4 === 1 ? 'from-secondary to-secondary-light' :
+                      idx % 4 === 2 ? 'from-accent to-accent-light' :
+                      'from-primary-dark to-secondary'
+                    }`}>
+                      <span className="absolute top-3 left-3 flex items-center gap-1 bg-black/40 backdrop-blur-sm text-white text-xs font-semibold px-2 py-1 rounded-full">
+                        <Clock className="w-3 h-3" />
+                        Registration Closed
+                      </span>
+                      {event.categories?.length > 0 && (
+                        <span className="absolute top-3 right-3 bg-black/30 backdrop-blur-sm text-white text-xs px-2 py-1 rounded-full">
+                          {CATEGORY_LABELS[event.categories[0]] || event.categories[0]}
+                        </span>
+                      )}
+                    </div>
+                    <div className="p-4">
+                      <h3 className="font-bold text-muted-foreground mb-2 line-clamp-2">
+                        {event.name}
+                      </h3>
+                      {event.description && (
+                        <p className="text-xs text-muted-foreground/70 line-clamp-2 mb-3">{event.description}</p>
+                      )}
+                      <div className="space-y-1 text-xs text-muted-foreground/70">
+                        <div className="flex items-center gap-1.5">
+                          <Calendar className="w-3.5 h-3.5" />
+                          <span>{new Date(event.startDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Users className="w-3.5 h-3.5" />
+                          <span>
+                            {event.registrationCount || 0}
+                            {event.registrationLimit ? ` / ${event.registrationLimit}` : ''} registered
+                          </span>
+                        </div>
+                        {event.registrationDeadline && (
+                          <div className="flex items-center gap-1.5">
+                            <Clock className="w-3.5 h-3.5" />
+                            <span>Closed {new Date(event.registrationDeadline).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </section>
+          )}
         </div>
       )}
     </div>

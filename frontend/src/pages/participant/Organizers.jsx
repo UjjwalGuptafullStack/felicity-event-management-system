@@ -93,7 +93,7 @@ function Organizers() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.05 }}
               className="bg-card border border-border rounded-2xl overflow-hidden hover:border-primary/30 transition-all group cursor-pointer"
-              onClick={() => navigate(`/participant/organizers/${organizer._id}`)}
+              onClick={() => navigate(`/participant/organizers/${organizer.id || organizer._id}`)}
             >
               {/* Header */}
               <div className={`h-32 bg-gradient-to-br ${
