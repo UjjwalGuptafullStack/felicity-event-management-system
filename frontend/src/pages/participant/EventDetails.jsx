@@ -225,7 +225,12 @@ export default function EventDetails() {
     (async () => {
       try {
         const res = await getEventById(id);
-        setEvent(res.data.event);
+        const ev = res.data.event;
+        setEvent(ev);
+        // Restore team state if participant is already on a team for this event
+        if (ev.myTeam) {
+          setMyTeam(ev.myTeam);
+        }
         // Fetch feedback status now that we know the event
         try {
           const fbRes = await getMyFeedback(id);
@@ -273,6 +278,7 @@ export default function EventDetails() {
   const isTeamEvent = event.teamRegistration?.enabled;
   const isOpen      = event.computed?.isRegistrationOpen ?? (event.registrationDeadline ? new Date(event.registrationDeadline) > new Date() : true);
   const isFull      = event.computed?.isFull;
+  const alreadyReg  = event.myRegistration || event.isRegistered;
 
   return (
     <>
@@ -329,8 +335,18 @@ export default function EventDetails() {
           </div>
         )}
 
+        {/* Solo-registered confirmation */}
+        {event.myRegistration && !myTeam && (
+          <div className="p-5 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl space-y-1">
+            <p className="font-semibold text-emerald-400 flex items-center gap-2"><BadgeCheck className="w-4 h-4" /> You're registered!</p>
+            {event.myRegistration.ticket && (
+              <p className="text-sm text-muted-foreground">Ticket ID: <span className="font-mono font-bold text-emerald-300">{event.myRegistration.ticket.ticketId}</span></p>
+            )}
+          </div>
+        )}
+
         {/* Registration actions */}
-        {isOpen && !isFull && !myTeam && (
+        {isOpen && !isFull && !myTeam && !alreadyReg && (
           <div className="p-6 bg-background-secondary border border-border rounded-2xl space-y-4">
             <h2 className="font-bold text-foreground text-lg">Register</h2>
             {isTeamEvent ? (
@@ -355,8 +371,8 @@ export default function EventDetails() {
         )}
 
         {myTeam && <TeamFormedCard team={myTeam} navigate={navigate} />}
-        {!isOpen && !myTeam && <Alert type="error">Registration is closed for this event.</Alert>}
-        {isFull && !myTeam  && <Alert type="error">This event has reached its registration limit.</Alert>}
+        {!isOpen && !myTeam && !alreadyReg && <Alert type="error">Registration is closed for this event.</Alert>}
+        {isFull && !myTeam && !alreadyReg && <Alert type="error">This event has reached its registration limit.</Alert>}
 
         {/* Discussion Forum link */}
         <button

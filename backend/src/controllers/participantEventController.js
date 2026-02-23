@@ -20,6 +20,7 @@ const Registration = require('../models/Registration');
 const Ticket = require('../models/Ticket');
 const Organizer = require('../models/Organizer');
 const User = require('../models/User');
+const Team = require('../models/Team');
 const { sendRegistrationConfirmationEmail } = require('../utils/emailService');
 const { EVENT_STATUS, REGISTRATION_STATUS, REGISTRATION_TYPES, EVENT_TYPES } = require('../utils/constants');
 const { computeEffectiveStatus } = require('./eventController');
@@ -178,6 +179,58 @@ const getEventDetails = async (req, res) => {
       ? registrationCount >= event.registrationLimit
       : false;
 
+    // ── Personalised data for the authenticated participant ──────────────────
+    const participantId = req.actor?.id;
+    let myRegistration = null;
+    let myTeam = null;
+
+    if (participantId) {
+      // Check solo registration
+      const reg = await Registration.findOne({ eventId: event._id, participantId });
+      if (reg) {
+        const ticket = await Ticket.findOne({ registrationId: reg._id });
+        myRegistration = {
+          id: reg._id,
+          status: reg.status,
+          registrationType: reg.registrationType,
+          registeredAt: reg.createdAt,
+          ticket: ticket ? { ticketId: ticket.ticketId, issuedAt: ticket.issuedAt } : null
+        };
+      }
+
+      // Check team membership (any non-cancelled team for this event)
+      const team = await Team.findOne({
+        eventId: event._id,
+        'members.userId': participantId,
+        status: { $ne: 'cancelled' }
+      }).populate('members.userId', 'firstName lastName email');
+
+      if (team) {
+        const isLeader = team.leaderId.toString() === participantId;
+        myTeam = {
+          id: team._id,
+          name: team.name,
+          inviteCode: team.inviteCode,
+          maxSize: team.maxSize,
+          currentSize: team.members.length,
+          slotsLeft: team.maxSize - team.members.length,
+          status: team.status,
+          isLeader,
+          members: team.members.map(m => {
+            const u = m.userId;
+            const populated = u && typeof u === 'object' && u._id;
+            return {
+              userId: populated ? u._id : u,
+              name: populated ? `${u.firstName} ${u.lastName}`.trim() : null,
+              email: populated ? u.email : null,
+              isLeader: (populated ? u._id.toString() : u.toString()) === team.leaderId.toString(),
+              joinedAt: m.joinedAt
+            };
+          })
+        };
+      }
+    }
+
     res.status(200).json({
       success: true,
       event: {
@@ -201,10 +254,13 @@ const getEventDetails = async (req, res) => {
           contactEmail: event.organizerId.contactEmail
         } : null,
         teamRegistration: event.teamRegistration || { enabled: false },
-      computed: {
+        computed: {
           isRegistrationOpen,
           isFull
-        }
+        },
+        myRegistration,
+        myTeam,
+        isRegistered: !!(myRegistration || myTeam)
       }
     });
   } catch (error) {
@@ -437,10 +493,44 @@ const getMyRegistrations = async (req, res) => {
     // Filter out null entries (deleted events)
     const validRegistrations = formattedRegistrations.filter(reg => reg !== null);
 
+    // Also include forming-team events (participant committed but team not yet full)
+    // so the participant can see events they are "reserved" for
+    const formingTeams = await Team.find({
+      'members.userId': participantId,
+      status: 'forming'
+    }).populate('eventId');
+
+    const teamEventIds = new Set(validRegistrations.map(r => r.event.id.toString()));
+    const teamEntries = formingTeams
+      .filter(t => t.eventId && !teamEventIds.has(t.eventId._id.toString()))
+      .map(t => {
+        const ev = t.eventId;
+        return {
+          registrationId: null,
+          registrationStatus: 'team_forming',
+          registrationType: 'team',
+          registeredAt: t.createdAt,
+          teamId: t._id,
+          teamName: t.name,
+          teamStatus: t.status,
+          event: {
+            id: ev._id,
+            name: ev.name,
+            type: ev.type,
+            status: ev.status,
+            startDate: ev.startDate,
+            endDate: ev.endDate,
+            registrationFee: ev.registrationFee,
+            organizer: null
+          },
+          ticket: null
+        };
+      });
+
     res.status(200).json({
       success: true,
-      count: validRegistrations.length,
-      registrations: validRegistrations
+      count: validRegistrations.length + teamEntries.length,
+      registrations: [...validRegistrations, ...teamEntries]
     });
   } catch (error) {
     console.error('Get my registrations error:', error);
@@ -539,6 +629,41 @@ const getParticipantDashboard = async (req, res) => {
           }
         }
       }
+    }
+
+    // Include forming-team events (participant committed but no ticket yet)
+    const formingTeams = await Team.find({
+      'members.userId': participantId,
+      status: 'forming'
+    }).populate('eventId');
+
+    const registeredEventIds = new Set(registrations.map(r => r.eventId?._id?.toString()).filter(Boolean));
+
+    for (const team of formingTeams) {
+      if (!team.eventId) continue;
+      const ev = team.eventId;
+      if (registeredEventIds.has(ev._id.toString())) continue; // already has a ticket
+      const entryData = {
+        registrationId: null,
+        registrationStatus: 'team_forming',
+        registrationType: 'team',
+        registeredAt: team.createdAt,
+        teamId: team._id,
+        teamName: team.name,
+        event: {
+          id: ev._id,
+          name: ev.name,
+          type: ev.type,
+          status: ev.status,
+          startDate: ev.startDate,
+          endDate: ev.endDate,
+          registrationFee: ev.registrationFee,
+          organizer: null
+        }
+      };
+      // Treat as upcoming (team not yet complete means event hasn't happened)
+      upcomingEvents.push(entryData);
+      normalEvents.upcoming.push(entryData);
     }
 
     res.status(200).json({

@@ -8,10 +8,11 @@ import { motion, AnimatePresence } from 'motion/react';
 // ─── helpers ────────────────────────────────────────────────────────────────
 
 const STATUS_STYLES = {
-  registered:  'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20',
-  cancelled:   'bg-red-500/10    text-red-400    border border-red-500/20',
-  rejected:    'bg-orange-500/10 text-orange-300  border border-orange-500/20',
-  pending:     'bg-yellow-500/10 text-yellow-300  border border-yellow-500/20',
+  registered:   'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20',
+  team_forming: 'bg-yellow-500/10  text-yellow-400  border border-yellow-500/20',
+  cancelled:    'bg-red-500/10    text-red-400    border border-red-500/20',
+  rejected:     'bg-orange-500/10 text-orange-300  border border-orange-500/20',
+  pending:      'bg-yellow-500/10 text-yellow-300  border border-yellow-500/20',
 };
 
 const TYPE_STYLES = {
@@ -52,7 +53,7 @@ function RegCard({ reg, navigate }) {
             {event.type}
           </span>
           <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${STATUS_STYLES[registrationStatus] || ''}`}>
-            {registrationStatus}
+            {registrationStatus === 'team_forming' ? 'Team Forming' : registrationStatus}
           </span>
         </div>
       </div>
