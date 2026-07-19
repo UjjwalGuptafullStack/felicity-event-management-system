@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   UsersRound, Loader2, AlertCircle, BadgeCheck, Copy, Check,
   LogIn, X, Trash2, LogOut, RefreshCw, Plus, Calendar, MessageSquare
@@ -9,7 +9,7 @@ import { getMyTeams, getTeamDetail, cancelTeam, leaveTeam, joinTeamByCode } from
 // ─── helpers ──────────────────────────────────────────────────────────────────
 const fmt = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 
-const CopyButton = ({ text }) => {
+const CopyButton = ({ text, label = 'Copy' }) => {
   const [copied, setCopied] = useState(false);
   const copy = () => {
     navigator.clipboard.writeText(text);
@@ -19,7 +19,7 @@ const CopyButton = ({ text }) => {
   return (
     <button onClick={copy} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-accent transition-colors">
       {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-      {copied ? 'Copied' : 'Copy'}
+      {copied ? 'Copied' : label}
     </button>
   );
 };
@@ -43,8 +43,8 @@ const StatusBadge = ({ status }) => {
 };
 
 // ─── Join-by-code modal ───────────────────────────────────────────────────────
-function JoinModal({ onClose, onJoined }) {
-  const [code, setCode]       = useState('');
+function JoinModal({ onClose, onJoined, initialCode = '' }) {
+  const [code, setCode]       = useState(initialCode);
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState('');
 
@@ -207,7 +207,13 @@ function TeamCard({ team: summary, onRefresh, currentUserId }) {
                 <p className="text-xs text-muted-foreground mb-0.5">Invite Code</p>
                 <p className="text-lg font-mono font-bold text-accent tracking-widest">{t.inviteCode}</p>
               </div>
-              <CopyButton text={t.inviteCode} />
+              <div className="flex items-center gap-3">
+                <CopyButton text={t.inviteCode} />
+                <CopyButton
+                  text={`${window.location.origin}/participant/teams?code=${t.inviteCode}`}
+                  label="Copy invite link"
+                />
+              </div>
             </div>
           )}
 
@@ -293,9 +299,13 @@ export default function TeamsPage() {
   })();
   const currentUserId = authData?.user?._id || authData?.user?.id;
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const codeFromLink = searchParams.get('code') || '';
+
   const [teams,   setTeams]   = useState([]);
   const [loading, setLoading] = useState(true);
-  const [modal,   setModal]   = useState(false);
+  // Auto-open the join modal, prefilled, when arriving via a shared invite link
+  const [modal,   setModal]   = useState(() => !!codeFromLink);
   const [toast,   setToast]   = useState(null);
 
   const fetchTeams = useCallback(async () => {
@@ -308,13 +318,21 @@ export default function TeamsPage() {
 
   useEffect(() => { fetchTeams(); }, [fetchTeams]);
 
+  const closeModal = () => {
+    setModal(false);
+    if (codeFromLink) {
+      searchParams.delete('code');
+      setSearchParams(searchParams, { replace: true });
+    }
+  };
+
   const showToast = (type, text) => {
     setToast({ type, text });
     setTimeout(() => setToast(null), 4000);
   };
 
   const handleJoined = (team, msg) => {
-    setModal(false);
+    closeModal();
     showToast('success', msg);
     fetchTeams();
   };
@@ -325,7 +343,7 @@ export default function TeamsPage() {
 
   return (
     <>
-      {modal && <JoinModal onClose={() => setModal(false)} onJoined={handleJoined} />}
+      {modal && <JoinModal onClose={closeModal} onJoined={handleJoined} initialCode={codeFromLink} />}
 
       <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
         {/* Page header */}

@@ -23,6 +23,7 @@ function OrganizerEvents() {
     eligibility: '',
     teamRegistration: { enabled: false, minSize: 2, maxSize: 5 }
   });
+  const [publishNow, setPublishNow] = useState(false);
   const [message, setMessage] = useState('');
 
   useEffect(() => {
@@ -53,8 +54,23 @@ function OrganizerEvents() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await createEvent(formData);
-      setMessage('Event created successfully!');
+      const response = await createEvent(formData);
+      const newEventId = response.data?.event?.id;
+
+      if (publishNow && newEventId) {
+        try {
+          await publishEvent(newEventId);
+          setMessage('Event created and published!');
+        } catch (publishError) {
+          setMessage(
+            `Event created as a draft, but publishing failed: ${publishError.response?.data?.message || 'unknown error'}. You can publish it from Ongoing Events.`
+          );
+        }
+      } else {
+        setMessage('Event created successfully as a draft.');
+      }
+
+      setPublishNow(false);
       setFormData({
         name: '',
         description: '',
@@ -143,7 +159,7 @@ function OrganizerEvents() {
                 >
                   <option value="">Select eligibility...</option>
                   <option value="Open to all">Open to all</option>
-                  <option value="IIIT students only">IIIT students only</option>
+                  <option value="Institution students only">Institution students only</option>
                   <option value="External participants only">External participants only</option>
                   <option value="Invite only">Invite only</option>
                 </select>
@@ -241,9 +257,19 @@ function OrganizerEvents() {
               )}
             </div>
 
+            <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+              <input
+                type="checkbox"
+                checked={publishNow}
+                onChange={(e) => setPublishNow(e.target.checked)}
+                className="w-4 h-4 accent-primary"
+              />
+              Publish immediately (skip the draft step)
+            </label>
+
             <div className="flex gap-3">
               <GradientButton type="submit" variant="accent">
-                Create Event (Draft)
+                {publishNow ? 'Create & Publish Event' : 'Create Event (Draft)'}
               </GradientButton>
             </div>
           </form>

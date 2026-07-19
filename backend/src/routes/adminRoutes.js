@@ -12,6 +12,8 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate, requireAdmin } = require('../middleware/authContracts');
+const validate = require('../middleware/validate');
+const { createOrganizerSchema } = require('../validation/schemas');
 const {
   createOrganizer,
   listOrganizers,
@@ -33,7 +35,7 @@ router.get('/dashboard', getAdminDashboard);
 router.get('/stats', getAdminStats);
 
 // Organizer management routes
-router.post('/organizers', createOrganizer);
+router.post('/organizers', validate(createOrganizerSchema), createOrganizer);
 router.get('/organizers', listOrganizers);
 router.get('/organizers/:id', getOrganizer);
 router.patch('/organizers/:id/disable', disableOrganizer);

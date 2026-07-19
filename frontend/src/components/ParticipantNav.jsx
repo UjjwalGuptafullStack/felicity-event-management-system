@@ -2,6 +2,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { useAuth } from '../context/AuthContext';
 import { LayoutDashboard, Grid3x3, Users, User, LogOut, Sparkles, UsersRound } from 'lucide-react';
+import { ThemeToggle } from './ThemeToggle';
+import { NotificationBell } from './NotificationBell';
 
 export const ParticipantNav = () => {
   const { logout } = useAuth();
@@ -22,7 +24,7 @@ export const ParticipantNav = () => {
     if (location.pathname.includes('/events/')) return 'Event Details';
     if (location.pathname.includes('/teams')) return 'My Teams';
     const currentItem = navItems.find(item => item.path === location.pathname);
-    return currentItem ? currentItem.label : 'Felicity';
+    return currentItem ? currentItem.label : 'Convene';
   };
 
   const isActive = (path) => location.pathname === path;
@@ -57,6 +59,8 @@ export const ParticipantNav = () => {
                 <span className="hidden md:inline text-sm">{item.label}</span>
               </motion.button>
             ))}
+            <NotificationBell />
+            <ThemeToggle />
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}

@@ -1,52 +1,18 @@
 import api from './axios';
 
-// Get pending merchandise payments
-export const getPendingPayments = () => 
-  api.get('/organizer/merchandise/pending');
-
-// Approve payment
-export const approvePayment = (regId) => 
-  api.post(`/organizer/merchandise/${regId}/approve`);
-
-// Reject payment
-export const rejectPayment = (regId, data) => 
-  api.post(`/organizer/merchandise/${regId}/reject`, data);
-
-// Scan QR code
-export const scanQRCode = (eventId, data) => 
-  api.post(`/organizer/events/${eventId}/attendance/scan`, data);
-
-// Manual attendance entry
-export const manualAttendance = (eventId, data) => 
-  api.post(`/organizer/events/${eventId}/attendance/manual`, data);
-
-// Get attendance list
-export const getAttendanceList = (eventId) => 
-  api.get(`/organizer/events/${eventId}/attendance`);
-
-// Export attendance CSV (moved to Part 2 section below)
-
-// Submit password reset request
-export const submitPasswordReset = (data) => 
-  api.post('/organizer/password-reset/request', data);
-
-// Get own reset requests
-export const getOwnResetRequests = () => 
-  api.get('/organizer/password-reset/my-requests');
-
 // Get organizer profile
-export const getOrganizerProfile = () => 
+export const getOrganizerProfile = () =>
   api.get('/organizer/profile');
 
 // Update organizer profile
-export const updateOrganizerProfile = (data) => 
+export const updateOrganizerProfile = (data) =>
   api.patch('/organizer/profile', data);
 
-// Change organizer password via admin-approved request
-export const completePasswordChange = (requestId, newPassword) =>
-  api.post(`/organizer/password-reset/${requestId}/complete`, { newPassword });
+// Change password while logged in (current + new password)
+export const changeOrganizerPassword = (data) =>
+  api.post('/organizer/me/change-password', data);
 
-// Additional Part 2 APIs
+// Events
 export const getOrganizerEvents = () => api.get('/organizer/events');
 
 export const getOrganizerDashboard = () => api.get('/organizer/dashboard');
@@ -65,6 +31,12 @@ export const closeEventRegistrations = (eventId) => api.post(`/organizer/events/
 
 export const getEventAnalytics = (eventId) => api.get(`/organizer/events/${eventId}/analytics`);
 
+export const getOrganizerAnalyticsOverview = () => api.get('/organizer/analytics/overview');
+
+export const exportEventRegistrations = (eventId) =>
+  api.get(`/organizer/events/${eventId}/registrations/export`, { responseType: 'blob' });
+
+// Feedback
 export const getEventFeedback = (eventId) => api.get(`/organizer/events/${eventId}/feedback`);
 
 export const getEventFeedbackStats = (eventId) => api.get(`/organizer/events/${eventId}/feedback/stats`);
@@ -72,23 +44,24 @@ export const getEventFeedbackStats = (eventId) => api.get(`/organizer/events/${e
 export const exportFeedbackCSV = (eventId) =>
   api.get(`/organizer/events/${eventId}/feedback/export`, { responseType: 'blob' });
 
-export const getPendingMerchandise = () => api.get('/part2/merchandise/pending');
+// Merchandise approvals
+export const getPendingMerchandise = () => api.get('/organizer/merchandise/pending');
 
-export const approveMerchandise = (purchaseId) => 
-  api.put(`/part2/merchandise/${purchaseId}/approve`);
+export const approveMerchandise = (regId) =>
+  api.post(`/organizer/merchandise/${regId}/approve`);
 
-export const rejectMerchandise = (purchaseId) => 
-  api.put(`/part2/merchandise/${purchaseId}/reject`);
+export const rejectMerchandise = (regId) =>
+  api.post(`/organizer/merchandise/${regId}/reject`);
 
-// Correct attendance API calls (aliases for backward compat)
-export const scanQRAttendance = (eventId, qrCode) => 
+// Attendance
+export const scanQRAttendance = (eventId, qrCode) =>
   api.post(`/organizer/events/${eventId}/attendance/scan`, { qrCode });
 
 export const markManualAttendance = (eventId, participantEmail, remarks = '') =>
   api.post(`/organizer/events/${eventId}/attendance/manual`, { participantEmail, remarks });
 
-export const getEventAttendance = (eventId) => 
+export const getEventAttendance = (eventId) =>
   api.get(`/organizer/events/${eventId}/attendance`);
 
-export const exportAttendance = (eventId) => 
+export const exportAttendance = (eventId) =>
   api.get(`/organizer/events/${eventId}/attendance/export`, { responseType: 'blob' });

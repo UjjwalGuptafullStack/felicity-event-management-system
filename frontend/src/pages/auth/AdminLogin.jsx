@@ -62,7 +62,7 @@ const AdminLogin = () => {
             <input
               id="email"
               type="email"
-              placeholder="admin@felicity.com"
+              placeholder="admin@convene.app"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               required

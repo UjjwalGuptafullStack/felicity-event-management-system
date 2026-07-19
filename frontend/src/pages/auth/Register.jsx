@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { registerParticipant } from '../../api/auth';
 import { useAuth } from '../../context/AuthContext';
+import { INSTITUTION_NAME, INSTITUTION_EMAIL_DOMAINS, HAS_INSTITUTION_DOMAINS } from '../../config/institution';
 import '../auth/Login.css';
 
 const Register = () => {
@@ -38,10 +39,9 @@ const Register = () => {
     setError('');
     setLoading(true);
 
-    const iiitCollegeName = 'International Institute of Information Technology, Hyderabad';
-    const iiitDomains = ['iiit.ac.in', 'research.iiit.ac.in', 'students.iiit.ac.in'];
     const email = formData.email.trim().toLowerCase();
     const emailDomain = email.includes('@') ? email.split('@').pop() : '';
+    const matchesInstitutionDomain = HAS_INSTITUTION_DOMAINS && INSTITUTION_EMAIL_DOMAINS.includes(emailDomain);
 
     if (!collegeChoice) {
       setError('Please select your college option.');
@@ -49,9 +49,9 @@ const Register = () => {
       return;
     }
 
-    if (collegeChoice === 'iiith') {
-      if (!iiitDomains.includes(emailDomain)) {
-        setError('IIITH participants must use an @iiit.ac.in, @research.iiit.ac.in, or @students.iiit.ac.in email.');
+    if (collegeChoice === 'affiliated') {
+      if (HAS_INSTITUTION_DOMAINS && !matchesInstitutionDomain) {
+        setError(`${INSTITUTION_NAME} participants must use an email ending in ${INSTITUTION_EMAIL_DOMAINS.map((d) => '@' + d).join(', ')}.`);
         setLoading(false);
         return;
       }
@@ -63,8 +63,8 @@ const Register = () => {
         setLoading(false);
         return;
       }
-      if (iiitDomains.includes(emailDomain)) {
-        setError('IIITH emails are only allowed when the IIITH option is selected.');
+      if (matchesInstitutionDomain) {
+        setError(`${INSTITUTION_NAME} emails are only allowed when the ${INSTITUTION_NAME} option is selected.`);
         setLoading(false);
         return;
       }
@@ -72,7 +72,7 @@ const Register = () => {
 
     const payload = {
       ...formData,
-      collegeOrOrg: collegeChoice === 'iiith' ? iiitCollegeName : otherCollege.trim(),
+      collegeOrOrg: collegeChoice === 'affiliated' ? INSTITUTION_NAME : otherCollege.trim(),
     };
 
     try {
@@ -96,7 +96,7 @@ const Register = () => {
     <div className="auth-container">
       <div className="auth-card">
         <div className="auth-header">
-          <h1>Join Felicity</h1>
+          <h1>Create Your Account</h1>
           <p>Participant registration</p>
         </div>
 
@@ -169,10 +169,10 @@ const Register = () => {
               <label className="college-option">
                 <input
                   type="checkbox"
-                  checked={collegeChoice === 'iiith'}
-                  onChange={(e) => setCollegeChoice(e.target.checked ? 'iiith' : '')}
+                  checked={collegeChoice === 'affiliated'}
+                  onChange={(e) => setCollegeChoice(e.target.checked ? 'affiliated' : '')}
                 />
-                <span>International Institute of Information Technology, Hyderabad</span>
+                <span>{INSTITUTION_NAME}</span>
               </label>
               <label className="college-option">
                 <input

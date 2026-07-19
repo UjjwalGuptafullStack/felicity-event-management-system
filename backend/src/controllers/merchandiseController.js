@@ -7,8 +7,39 @@
 const Event = require('../models/Event');
 const Registration = require('../models/Registration');
 const Ticket = require('../models/Ticket');
-const { REGISTRATION_TYPES } = require('../utils/constants');
+const { REGISTRATION_TYPES, ACTOR_TYPES } = require('../utils/constants');
+const { notify } = require('../utils/notify');
 const crypto = require('crypto');
+
+const generateTicketId = (prefix) => `${prefix}-${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
+
+/**
+ * Decrement stock, mark a merchandise registration approved, and issue its ticket.
+ * Shared by the auto-approve path (requiresApproval: false) and the manual
+ * organizer-approval path so stock/ticket logic only lives in one place.
+ */
+const finalizeApprovedPurchase = async (registration, event, organizerId = null) => {
+  for (const item of registration.purchasedItems) {
+    const variant = event.merchandiseDetails.items[item.itemIndex].variants[item.variantIndex];
+    variant.stock -= item.quantity;
+  }
+  await event.save();
+
+  registration.paymentStatus = 'approved';
+  registration.approvedAt = new Date();
+  if (organizerId) registration.approvedBy = organizerId;
+  await registration.save();
+
+  const qrCode = crypto.randomBytes(32).toString('hex');
+  const ticket = new Ticket({
+    registrationId: registration._id,
+    ticketId: generateTicketId('MERCH'),
+    qrCode
+  });
+  await ticket.save();
+
+  return ticket;
+};
 
 /**
  * Purchase merchandise
@@ -98,12 +129,15 @@ const purchaseMerchandise = async (req, res) => {
       });
     }
 
-    // Create registration with pending payment status
+    // Events can opt out of manual payment review (merchandiseDetails.requiresApproval).
+    // When it's false, skip the pending state entirely and issue the ticket immediately.
+    const requiresApproval = event.merchandiseDetails?.requiresApproval !== false;
+
     const registration = new Registration({
       eventId,
       participantId,
       registrationType: REGISTRATION_TYPES.MERCHANDISE,
-      paymentStatus: 'pending',
+      paymentStatus: requiresApproval ? 'pending' : 'approved',
       paymentProofUrl,
       purchasedItems,
       totalAmount
@@ -111,15 +145,23 @@ const purchaseMerchandise = async (req, res) => {
 
     await registration.save();
 
+    let ticket = null;
+    if (!requiresApproval) {
+      ticket = await finalizeApprovedPurchase(registration, event);
+    }
+
     res.status(201).json({
       success: true,
-      message: 'Merchandise purchase initiated. Awaiting payment approval.',
+      message: requiresApproval
+        ? 'Merchandise purchase initiated. Awaiting payment approval.'
+        : 'Merchandise purchased successfully.',
       registration: {
         id: registration._id,
         paymentStatus: registration.paymentStatus,
         totalAmount: registration.totalAmount,
         items: purchasedItems
-      }
+      },
+      ...(ticket && { ticket: { id: ticket._id, ticketId: ticket.ticketId, qrCode: ticket.qrCode } })
     });
   } catch (error) {
     console.error('Purchase merchandise error:', error);
@@ -148,7 +190,7 @@ const getPendingPayments = async (req, res) => {
       registrationType: REGISTRATION_TYPES.MERCHANDISE,
       paymentStatus: 'pending'
     })
-      .populate('eventId', 'name')
+      .populate('eventId', 'name merchandiseDetails')
       .populate('participantId', 'firstName lastName email')
       .sort({ createdAt: -1 });
 
@@ -168,7 +210,16 @@ const getPendingPayments = async (req, res) => {
         },
         totalAmount: reg.totalAmount,
         paymentProofUrl: reg.paymentProofUrl,
-        purchasedItems: reg.purchasedItems,
+        purchasedItems: reg.purchasedItems.map(item => {
+          const merchItem = reg.eventId.merchandiseDetails?.items?.[item.itemIndex];
+          const variant = merchItem?.variants?.[item.variantIndex];
+          return {
+            name: merchItem?.name || 'Unknown item',
+            variant: variant?.type || null,
+            quantity: item.quantity,
+            priceAtPurchase: item.priceAtPurchase
+          };
+        }),
         createdAt: reg.createdAt
       }))
     });
@@ -214,28 +265,16 @@ const approvePayment = async (req, res) => {
       });
     }
 
-    // Decrement stock
-    const event = registration.eventId;
-    for (const item of registration.purchasedItems) {
-      const variant = event.merchandiseDetails.items[item.itemIndex].variants[item.variantIndex];
-      variant.stock -= item.quantity;
-    }
-    await event.save();
+    const ticket = await finalizeApprovedPurchase(registration, registration.eventId, organizerId);
 
-    // Update registration
-    registration.paymentStatus = 'approved';
-    registration.approvedAt = new Date();
-    registration.approvedBy = organizerId;
-    await registration.save();
-
-    // Generate ticket with QR code
-    const qrCode = crypto.randomBytes(32).toString('hex');
-    const ticket = new Ticket({
-      registrationId: registration._id,
-      ticketId: `MERCH-${registration._id}`,
-      qrCode
+    notify({
+      recipientType: ACTOR_TYPES.USER,
+      recipientId: registration.participantId,
+      type: 'merchandise_approved',
+      title: 'Merchandise payment approved',
+      message: `Your payment for ${registration.eventId.name} was approved — your ticket is ready.`,
+      link: `/participant/events/${registration.eventId._id}`
     });
-    await ticket.save();
 
     res.status(200).json({
       success: true,
@@ -298,6 +337,15 @@ const rejectPayment = async (req, res) => {
     registration.paymentStatus = 'rejected';
     registration.rejectionReason = reason || 'Payment proof invalid';
     await registration.save();
+
+    notify({
+      recipientType: ACTOR_TYPES.USER,
+      recipientId: registration.participantId,
+      type: 'merchandise_rejected',
+      title: 'Merchandise payment rejected',
+      message: `Your payment for ${registration.eventId.name} was rejected${reason ? `: ${reason}` : '.'}`,
+      link: `/participant/events/${registration.eventId._id}`
+    });
 
     res.status(200).json({
       success: true,

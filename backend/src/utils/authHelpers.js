@@ -139,19 +139,18 @@ const verifyToken = (token) => {
 };
 
 /**
- * Validate email belongs to IIIT participant domains.
- * Accepted:
- *   @students.iiit.ac.in   — student accounts
- *   @research.iiit.ac.in   — research scholars
- *   @iiit.ac.in            — faculty / staff
- *   *.iiit.ac.in           — any IIIT sub-domain
+ * Check whether an email belongs to one of the configured institution domains
+ * (INSTITUTION_EMAIL_DOMAINS env var). Used to classify participants as
+ * "affiliated" vs "general" at registration. Matches the domain itself or any
+ * sub-domain of it. Returns false (no affiliated domains configured) by default.
  * @param {string} email - Email to validate
- * @returns {boolean} True if IIIT email
+ * @returns {boolean} True if the email matches a configured institution domain
  */
-const isIIITEmail = (email) => {
+const isInstitutionEmail = (email) => {
   const emailLower = email.toLowerCase();
-  // Match any sub-domain of iiit.ac.in (includes students., research., faculty., etc.)
-  return emailLower.endsWith('@iiit.ac.in') || emailLower.endsWith('.iiit.ac.in');
+  return config.institutionEmailDomains.some(
+    (domain) => emailLower.endsWith(`@${domain}`) || emailLower.endsWith(`.${domain}`)
+  );
 };
 
 module.exports = {
@@ -166,5 +165,5 @@ module.exports = {
   comparePassword,
   generateToken,
   verifyToken,
-  isIIITEmail
+  isInstitutionEmail
 };

@@ -1,13 +1,13 @@
 {
-  "name": "felicity-event-management-backend",
+  "name": "convene-backend",
   "version": "1.0.0",
-  "description": "Backend for Felicity Event Management System",
+  "description": "Backend API for Convene, an event management platform",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
     "seed": "node scripts/seed.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "vitest run"
   },
   "keywords": [
     "events",
@@ -15,7 +15,7 @@
     "backend"
   ],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "bcrypt": "^5.1.1",
     "cors": "^2.8.5",
@@ -26,9 +26,13 @@
     "multer": "^2.0.2",
     "nodemailer": "^8.0.1",
     "qrcode": "^1.5.4",
-    "socket.io": "^4.8.3"
+    "socket.io": "^4.8.3",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
-    "nodemon": "^3.0.3"
+    "mongodb-memory-server": "^11.2.0",
+    "nodemon": "^3.0.3",
+    "supertest": "^7.2.2",
+    "vitest": "^4.1.10"
   }
 }

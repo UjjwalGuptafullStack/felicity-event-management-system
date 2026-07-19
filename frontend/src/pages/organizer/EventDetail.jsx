@@ -27,7 +27,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { GradientButton } from '../../components/design-system/GradientButton';
-import { getOrganizerEvent, getEventRegistrations, publishEvent, updateEvent, getEventFeedback, getEventFeedbackStats, exportFeedbackCSV } from '../../api/organizer';
+import { getOrganizerEvent, getEventRegistrations, publishEvent, updateEvent, getEventFeedback, getEventFeedbackStats, exportFeedbackCSV, exportEventRegistrations } from '../../api/organizer';
 import { getMessages, pinMessage, unpinMessage, deleteMessage, postAnnouncement } from '../../api/discussion';
 
 const StatusBadge = ({ status }) => {
@@ -90,6 +90,7 @@ export default function OrganizerEventDetail() {
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [ratingFilter,  setRatingFilter]  = useState(0);   // 0 = all
   const [exportingCSV,  setExportingCSV]  = useState(false);
+  const [exportingRegs, setExportingRegs] = useState(false);
 
   // Discussion state
   const [discussion,       setDiscussion]    = useState([]);
@@ -282,6 +283,21 @@ export default function OrganizerEventDetail() {
     }
   };
 
+  const handleExportRegistrationsCSV = async () => {
+    setExportingRegs(true);
+    try {
+      const res = await exportEventRegistrations(id);
+      const url = URL.createObjectURL(new Blob([res.data], { type: 'text/csv' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `registrations-${event?.name?.replace(/\s+/g, '-') || id}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch { /* swallow */ } finally {
+      setExportingRegs(false);
+    }
+  };
+
   const handlePublish = async () => {
     setPublishing(true);
     setPublishMsg(null);
@@ -437,7 +453,7 @@ export default function OrganizerEventDetail() {
                 className={inputCls}>
                 <option value="">Select eligibility…</option>
                 <option value="Open to all">Open to all</option>
-                <option value="IIIT students only">IIIT students only</option>
+                <option value="Institution students only">Institution students only</option>
                 <option value="External participants only">External participants only</option>
                 <option value="Invite only">Invite only</option>
               </select>
@@ -594,7 +610,19 @@ export default function OrganizerEventDetail() {
       <div className="p-6 bg-background-secondary border border-border rounded-2xl space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Registrations</h2>
-          {!regsLoading && <span className="text-xs text-muted-foreground">{registrations.length} total</span>}
+          <div className="flex items-center gap-3">
+            {!regsLoading && <span className="text-xs text-muted-foreground">{registrations.length} total</span>}
+            {!regsLoading && registrations.length > 0 && (
+              <button
+                onClick={handleExportRegistrationsCSV}
+                disabled={exportingRegs}
+                className="flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary-light transition-colors disabled:opacity-50"
+              >
+                {exportingRegs ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
+                Export CSV
+              </button>
+            )}
+          </div>
         </div>
 
         {regsLoading ? (

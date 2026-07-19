@@ -4,6 +4,7 @@ import { listOrganizers, followOrganizer, unfollowOrganizer } from '../../api/pa
 import { GradientButton } from '../../components/design-system/GradientButton';
 import { Users, Heart, Mail, Tag } from 'lucide-react';
 import { motion } from 'motion/react';
+import { getCategoryLabel } from '../../utils/organizerCategories';
 
 function Organizers() {
   const navigate = useNavigate();
@@ -116,7 +117,7 @@ function Organizers() {
                     {organizer.category && (
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Tag className="w-3.5 h-3.5" />
-                        <span className="truncate">{organizer.category}</span>
+                        <span className="truncate">{getCategoryLabel(organizer.category)}</span>
                       </div>
                     )}
                   </div>

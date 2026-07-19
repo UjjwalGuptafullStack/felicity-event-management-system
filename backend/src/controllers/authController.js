@@ -9,15 +9,16 @@
 
 const User = require('../models/User');
 const Organizer = require('../models/Organizer');
-const { USER_ROLES, PARTICIPANT_TYPES } = require('../utils/constants');
+const { USER_ROLES, PARTICIPANT_TYPES, ACTOR_TYPES } = require('../utils/constants');
 const {
   hashPassword,
   comparePassword,
   generateToken,
   createUserPayload,
   createOrganizerPayload,
-  isIIITEmail
+  isInstitutionEmail
 } = require('../utils/authHelpers');
+const { issuePasswordReset, findValidResetToken } = require('../utils/passwordReset');
 
 /**
  * Register a new participant
@@ -55,16 +56,16 @@ const registerParticipant = async (req, res) => {
     // Determine participant type based on email if not provided
     let finalParticipantType = participantType;
     if (!finalParticipantType) {
-      finalParticipantType = isIIITEmail(email) 
-        ? PARTICIPANT_TYPES.IIIT 
-        : PARTICIPANT_TYPES.NON_IIIT;
+      finalParticipantType = isInstitutionEmail(email)
+        ? PARTICIPANT_TYPES.AFFILIATED
+        : PARTICIPANT_TYPES.GENERAL;
     }
 
     // Validate participantType matches email domain
-    if (finalParticipantType === PARTICIPANT_TYPES.IIIT && !isIIITEmail(email)) {
+    if (finalParticipantType === PARTICIPANT_TYPES.AFFILIATED && !isInstitutionEmail(email)) {
       return res.status(400).json({
         success: false,
-        message: 'IIIT participant type requires IIIT email domain'
+        message: 'The affiliated participant type requires an institution email domain'
       });
     }
 
@@ -314,9 +315,103 @@ const loginOrganizer = async (req, res) => {
   }
 };
 
+/**
+ * Request a password reset link (participant or organizer).
+ * POST /auth/forgot-password
+ * Always returns a generic success message so the response can't be used to
+ * enumerate registered emails.
+ */
+const forgotPassword = async (req, res) => {
+  try {
+    const { email, actorType } = req.body;
+
+    if (!email || !['participant', 'organizer'].includes(actorType)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email and a valid actorType (participant or organizer) are required'
+      });
+    }
+
+    const normalizedEmail = email.toLowerCase();
+    const genericResponse = {
+      success: true,
+      message: 'If an account with that email exists, a password reset link has been sent.'
+    };
+
+    if (actorType === 'participant') {
+      const user = await User.findOne({ email: normalizedEmail, role: USER_ROLES.PARTICIPANT });
+      if (user) {
+        await issuePasswordReset({
+          actorType: ACTOR_TYPES.USER,
+          actorId: user._id,
+          recipientEmail: user.email,
+          recipientName: `${user.firstName} ${user.lastName}`
+        });
+      }
+    } else {
+      const organizer = await Organizer.findOne({ loginEmail: normalizedEmail });
+      if (organizer) {
+        await issuePasswordReset({
+          actorType: ACTOR_TYPES.ORGANIZER,
+          actorId: organizer._id,
+          recipientEmail: organizer.contactEmail,
+          recipientName: organizer.name
+        });
+      }
+    }
+
+    res.status(200).json(genericResponse);
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ success: false, message: 'Failed to process password reset request' });
+  }
+};
+
+/**
+ * Complete a password reset using the token emailed by forgotPassword.
+ * POST /auth/reset-password
+ */
+const resetPassword = async (req, res) => {
+  try {
+    const { token, actorType, newPassword } = req.body;
+
+    if (!token || !['participant', 'organizer'].includes(actorType) || !newPassword || newPassword.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: 'A valid token and a new password (at least 8 characters) are required'
+      });
+    }
+
+    const modelActorType = actorType === 'organizer' ? ACTOR_TYPES.ORGANIZER : ACTOR_TYPES.USER;
+    const resetToken = await findValidResetToken({ token, actorType: modelActorType });
+
+    if (!resetToken) {
+      return res.status(400).json({ success: false, message: 'This reset link is invalid or has expired' });
+    }
+
+    const passwordHash = await hashPassword(newPassword);
+
+    if (modelActorType === ACTOR_TYPES.USER) {
+      await User.findByIdAndUpdate(resetToken.actorId, { passwordHash });
+    } else {
+      await Organizer.findByIdAndUpdate(resetToken.actorId, { passwordHash });
+    }
+
+    resetToken.used = true;
+    await resetToken.save();
+
+    res.status(200).json({ success: true, message: 'Password updated successfully. You can now log in.' });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ success: false, message: 'Failed to reset password' });
+  }
+};
+
 module.exports = {
   registerParticipant,
   loginParticipant,
   loginAdmin,
-  loginOrganizer
+  loginOrganizer,
+  forgotPassword,
+  resetPassword
 };

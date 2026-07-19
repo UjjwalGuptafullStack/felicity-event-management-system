@@ -1,4 +1,7 @@
 const mongoose = require('mongoose');
+const { ORGANIZER_CATEGORIES } = require('../utils/constants');
+
+const CATEGORY_VALUES = Object.values(ORGANIZER_CATEGORIES);
 
 const organizerSchema = new mongoose.Schema({
   name: {
@@ -10,8 +13,8 @@ const organizerSchema = new mongoose.Schema({
     type: String,
     trim: true,
     enum: {
-      values: ['technical', 'cultural', 'sports', 'academic', 'social', 'other'],
-      message: 'Category must be one of: technical, cultural, sports, academic, social, other'
+      values: CATEGORY_VALUES,
+      message: `Category must be one of: ${CATEGORY_VALUES.join(', ')}`
     },
     lowercase: true
   },

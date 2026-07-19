@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { getOrganizerProfile, updateOrganizerProfile, submitPasswordReset, getOwnResetRequests, completePasswordChange } from '../../api/organizer';
+import { getOrganizerProfile, updateOrganizerProfile, changeOrganizerPassword } from '../../api/organizer';
 import { GradientButton } from '../../components/design-system/GradientButton';
-import { User, Mail, Phone, Tag, FileText, Save, X, Webhook, Lock, Eye, EyeOff, Clock, CheckCircle2, XCircle, Send } from 'lucide-react';
+import { User, Mail, Phone, Tag, FileText, Save, X, Webhook, Lock, Eye, EyeOff } from 'lucide-react';
+import { ORGANIZER_CATEGORIES, getCategoryLabel } from '../../utils/organizerCategories';
 import { motion, AnimatePresence } from 'motion/react';
 
 function OrganizerProfile() {
@@ -19,19 +20,13 @@ function OrganizerProfile() {
     discordWebhook: ''
   });
 
-  // Password reset workflow state
-  const [resetRequests, setResetRequests] = useState([]);
-  const [resetLoading, setResetLoading] = useState(true);
-  const [requestReason, setRequestReason] = useState('');
-  const [submittingRequest, setSubmittingRequest] = useState(false);
-  const [newPwForm, setNewPwForm] = useState({ newPassword: '', confirmPassword: '' });
-  const [showNewPw, setShowNewPw] = useState({ new: false, confirm: false });
-  const [settingPassword, setSettingPassword] = useState(false);
-  const [showRequestForm, setShowRequestForm] = useState(false);
+  // Password change state
+  const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [showPw, setShowPw] = useState({ current: false, new: false, confirm: false });
+  const [changingPassword, setChangingPassword] = useState(false);
 
   useEffect(() => {
     fetchProfile();
-    fetchResetRequests();
   }, []);
 
   const fetchProfile = async () => {
@@ -51,18 +46,6 @@ function OrganizerProfile() {
       showNotice('error', 'Failed to load profile');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchResetRequests = async () => {
-    setResetLoading(true);
-    try {
-      const res = await getOwnResetRequests();
-      setResetRequests(res.data.requests || []);
-    } catch {
-      // swallow
-    } finally {
-      setResetLoading(false);
     }
   };
 
@@ -97,49 +80,29 @@ function OrganizerProfile() {
     setEditing(false);
   };
 
-  const handleSubmitRequest = async () => {
-    if (!requestReason.trim()) {
-      showNotice('error', 'Please provide a reason for your password change request.');
-      return;
-    }
-    setSubmittingRequest(true);
-    try {
-      await submitPasswordReset({ reason: requestReason });
-      showNotice('success', 'Password change request submitted! Awaiting admin approval.');
-      setRequestReason('');
-      setShowRequestForm(false);
-      await fetchResetRequests();
-    } catch (err) {
-      showNotice('error', err.response?.data?.message || 'Failed to submit request.');
-    } finally {
-      setSubmittingRequest(false);
-    }
-  };
-
-  const handleSetNewPassword = async (requestId) => {
-    const { newPassword, confirmPassword } = newPwForm;
-    if (!newPassword || !confirmPassword) {
-      showNotice('error', 'Both password fields are required.');
+  const handleChangePassword = async () => {
+    const { currentPassword, newPassword, confirmPassword } = pwForm;
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      showNotice('error', 'All password fields are required.');
       return;
     }
     if (newPassword.length < 8) {
-      showNotice('error', 'Password must be at least 8 characters.');
+      showNotice('error', 'New password must be at least 8 characters.');
       return;
     }
     if (newPassword !== confirmPassword) {
-      showNotice('error', 'Passwords do not match.');
+      showNotice('error', 'New passwords do not match.');
       return;
     }
-    setSettingPassword(true);
+    setChangingPassword(true);
     try {
-      await completePasswordChange(requestId, newPassword);
-      showNotice('success', 'Password updated successfully!');
-      setNewPwForm({ newPassword: '', confirmPassword: '' });
-      await fetchResetRequests();
+      await changeOrganizerPassword({ currentPassword, newPassword });
+      showNotice('success', 'Password changed successfully!');
+      setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
     } catch (err) {
-      showNotice('error', err.response?.data?.message || 'Failed to update password.');
+      showNotice('error', err.response?.data?.message || 'Failed to change password.');
     } finally {
-      setSettingPassword(false);
+      setChangingPassword(false);
     }
   };
 
@@ -189,7 +152,7 @@ function OrganizerProfile() {
               </div>
               <div>
                 <h3 className="text-2xl sm:text-3xl font-bold text-foreground">{profile?.name}</h3>
-                <p className="text-sm text-muted-foreground mt-1">{profile?.category || 'Organizer'}</p>
+                <p className="text-sm text-muted-foreground mt-1">{profile?.category ? getCategoryLabel(profile.category) : 'Organizer'}</p>
               </div>
             </div>
             {!editing && (
@@ -241,15 +204,18 @@ function OrganizerProfile() {
                 Category
               </label>
               {editing ? (
-                <input
-                  type="text"
+                <select
                   value={formData.category}
                   onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  placeholder="e.g., Cultural, Technical, Sports"
-                  className="w-full px-4 py-3 bg-input-background border border-input-border rounded-xl text-input-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-                />
+                  className="w-full px-4 py-3 bg-input-background border border-input-border rounded-xl text-input-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 appearance-none cursor-pointer"
+                >
+                  <option value="">Select a category…</option>
+                  {ORGANIZER_CATEGORIES.map((c) => (
+                    <option key={c.value} value={c.value}>{c.label}</option>
+                  ))}
+                </select>
               ) : (
-                <p className="text-muted-foreground px-4 py-3">{profile?.category || 'Not set'}</p>
+                <p className="text-muted-foreground px-4 py-3">{profile?.category ? getCategoryLabel(profile.category) : 'Not set'}</p>
               )}
             </div>
 
@@ -371,162 +337,52 @@ function OrganizerProfile() {
             </div>
             <div>
               <h4 className="text-lg font-semibold text-foreground">Password</h4>
-              <p className="text-sm text-muted-foreground">Request admin approval to change your password</p>
+              <p className="text-sm text-muted-foreground">Change your password using your current one</p>
             </div>
           </div>
 
-          {resetLoading ? (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
-              <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-              Loading request status…
-            </div>
-          ) : (() => {
-            // Find the most relevant active request
-            const active = resetRequests.find(r => ['pending', 'approved'].includes(r.status));
-            const lastRejected = !active && resetRequests.find(r => r.status === 'rejected');
-            const lastCompleted = !active && !lastRejected && resetRequests.find(r => r.status === 'completed');
-
-            if (active?.status === 'pending') {
-              return (
-                <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/5 p-5 space-y-3">
-                  <div className="flex items-center gap-2 text-yellow-400 font-semibold text-sm">
-                    <Clock className="w-4 h-4" />
-                    Password Change Request Pending
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    Your request is awaiting admin review. You'll be notified by email when a decision is made.
-                  </p>
-                  {active.reason && (
-                    <p className="text-xs text-muted-foreground italic">Reason: "{active.reason}"</p>
-                  )}
-                </div>
-              );
-            }
-
-            if (active?.status === 'approved' && active?.canSetNewPassword) {
-              return (
-                <div className="space-y-4">
-                  <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 flex items-center gap-2 text-emerald-400 font-semibold text-sm">
-                    <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-                    Your request was approved — set your new password below.
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-foreground mb-2">New Password</label>
-                    <div className="relative">
-                      <input
-                        type={showNewPw.new ? 'text' : 'password'}
-                        value={newPwForm.newPassword}
-                        onChange={e => setNewPwForm(f => ({ ...f, newPassword: e.target.value }))}
-                        placeholder="At least 8 characters"
-                        className="w-full px-4 py-3 pr-12 bg-input-background border border-input-border rounded-xl text-input-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-                      />
-                      <button type="button"
-                        onClick={() => setShowNewPw(s => ({ ...s, new: !s.new }))}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                        {showNewPw.new ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                      </button>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-foreground mb-2">Confirm New Password</label>
-                    <div className="relative">
-                      <input
-                        type={showNewPw.confirm ? 'text' : 'password'}
-                        value={newPwForm.confirmPassword}
-                        onChange={e => setNewPwForm(f => ({ ...f, confirmPassword: e.target.value }))}
-                        placeholder="Repeat new password"
-                        className="w-full px-4 py-3 pr-12 bg-input-background border border-input-border rounded-xl text-input-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-                      />
-                      <button type="button"
-                        onClick={() => setShowNewPw(s => ({ ...s, confirm: !s.confirm }))}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                        {showNewPw.confirm ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                      </button>
-                    </div>
-                  </div>
-                  <GradientButton onClick={() => handleSetNewPassword(active.id)} disabled={settingPassword}>
-                    <Lock className="w-4 h-4 mr-2" />
-                    {settingPassword ? 'Saving…' : 'Set New Password'}
-                  </GradientButton>
-                </div>
-              );
-            }
-
-            if (lastRejected) {
-              return (
-                <div className="space-y-4">
-                  <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4 space-y-2">
-                    <div className="flex items-center gap-2 text-red-400 font-semibold text-sm">
-                      <XCircle className="w-4 h-4" />
-                      Previous request was rejected
-                    </div>
-                    {lastRejected.adminComment && (
-                      <p className="text-sm text-muted-foreground italic">"{lastRejected.adminComment}"</p>
-                    )}
-                    <p className="text-xs text-muted-foreground">You can submit a new request below.</p>
-                  </div>
-                  <PasswordRequestForm
-                    value={requestReason} onChange={setRequestReason}
-                    onSubmit={handleSubmitRequest} submitting={submittingRequest}
-                    show={showRequestForm} setShow={setShowRequestForm}
+          <div className="space-y-4 max-w-md">
+            {[
+              { key: 'current', label: 'Current Password', field: 'currentPassword', placeholder: 'Your current password' },
+              { key: 'new', label: 'New Password', field: 'newPassword', placeholder: 'At least 8 characters' },
+              { key: 'confirm', label: 'Confirm New Password', field: 'confirmPassword', placeholder: 'Repeat new password' },
+            ].map(({ key, label, field, placeholder }) => (
+              <div key={key}>
+                <label className="block text-sm font-semibold text-foreground mb-2">{label}</label>
+                <div className="relative">
+                  <input
+                    type={showPw[key] ? 'text' : 'password'}
+                    value={pwForm[field]}
+                    onChange={(e) => setPwForm((f) => ({ ...f, [field]: e.target.value }))}
+                    placeholder={placeholder}
+                    className="w-full px-4 py-3 pr-12 bg-input-background border border-input-border rounded-xl text-input-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPw((s) => ({ ...s, [key]: !s[key] }))}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showPw[key] ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
                 </div>
-              );
-            }
-
-            // No active request (or completed) — show request form option
-            return (
-              <div className="space-y-4">
-                {lastCompleted && (
-                  <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 flex items-center gap-2 text-emerald-400 text-sm">
-                    <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-                    Last password change completed successfully.
-                  </div>
-                )}
-                <PasswordRequestForm
-                  value={requestReason} onChange={setRequestReason}
-                  onSubmit={handleSubmitRequest} submitting={submittingRequest}
-                  show={showRequestForm} setShow={setShowRequestForm}
-                />
               </div>
-            );
-          })()}
+            ))}
+            <GradientButton onClick={handleChangePassword} disabled={changingPassword}>
+              <Lock className="w-4 h-4 mr-2" />
+              {changingPassword ? 'Changing…' : 'Change Password'}
+            </GradientButton>
+            <p className="text-xs text-muted-foreground">
+              Forgot your current password?{' '}
+              <a href="/forgot-password?actorType=organizer" className="text-primary hover:underline">
+                Reset it by email instead
+              </a>
+              .
+            </p>
+          </div>
         </div>
       </motion.div>
     </div>
   );
 }
 
-function PasswordRequestForm({ value, onChange, onSubmit, submitting, show, setShow }) {
-  if (!show) {
-    return (
-      <GradientButton onClick={() => setShow(true)}>
-        <Lock className="w-4 h-4 mr-2" />
-        Request Password Change
-      </GradientButton>
-    );
-  }
-  return (
-    <div className="space-y-3">
-      <div>
-        <label className="block text-sm font-semibold text-foreground mb-2">
-          Reason for password change
-        </label>
-        <textarea value={value} onChange={e => onChange(e.target.value)} rows={3}
-          placeholder="Briefly explain why you need to change your password…"
-          className="w-full px-4 py-3 bg-input-background border border-input-border rounded-xl text-input-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none" />
-      </div>
-      <div className="flex gap-3">
-        <GradientButton onClick={onSubmit} disabled={submitting}>
-          <Send className="w-4 h-4 mr-2" />
-          {submitting ? 'Submitting…' : 'Submit Request'}
-        </GradientButton>
-        <button onClick={() => { setShow(false); onChange(''); }} disabled={submitting}
-          className="flex items-center gap-2 px-5 py-3 rounded-xl border border-border hover:bg-muted/20 transition-colors text-foreground text-sm">
-          <X className="w-4 h-4" />Cancel
-        </button>
-      </div>
-    </div>
-  );
-}
 export default OrganizerProfile;

@@ -12,6 +12,9 @@ const crypto = require('crypto');
 const Organizer = require('../models/Organizer');
 const { hashPassword } = require('../utils/authHelpers');
 const { sendOrganizerCredentialsEmail } = require('../utils/emailService');
+const { issuePasswordReset } = require('../utils/passwordReset');
+const { ACTOR_TYPES } = require('../utils/constants');
+const config = require('../config/env');
 
 /**
  * Generate random password for new organizer
@@ -22,10 +25,10 @@ const generateTemporaryPassword = () => {
 };
 
 /**
- * Generate login email from organizer name
- * Format: <sanitized-name>@clubs.iiit.ac.in
+ * Generate login email from organizer name.
+ * Format: <sanitized-name>@<ORGANIZER_EMAIL_DOMAIN>
  * This namespace keeps organizer credentials clearly separated from
- * real IIIT employee/student emails.
+ * real participant/staff emails.
  * @param {string} name - Organizer name
  * @returns {string} Login email
  */
@@ -37,7 +40,7 @@ const generateLoginEmail = (name) => {
     .replace(/\s+/g, '-')
     .replace(/[^a-z0-9-]/g, '');
 
-  return `${sanitized}@clubs.iiit.ac.in`;
+  return `${sanitized}@${config.organizerEmailDomain}`;
 };
 
 /**
@@ -325,11 +328,13 @@ const getAdminDashboard = async (req, res) => {
     const { USER_ROLES } = require('../utils/constants');
 
     // Count totals
-    const totalOrganizers = await Organizer.countDocuments();
-    const activeOrganizers = await Organizer.countDocuments({ isActive: true });
-    const totalParticipants = await User.countDocuments({ role: USER_ROLES.PARTICIPANT });
-    const totalEvents = await Event.countDocuments();
-    const totalRegistrations = await Registration.countDocuments();
+    const [totalOrganizers, activeOrganizers, totalParticipants, totalEvents, totalRegistrations] = await Promise.all([
+      Organizer.countDocuments(),
+      Organizer.countDocuments({ isActive: true }),
+      User.countDocuments({ role: USER_ROLES.PARTICIPANT }),
+      Event.countDocuments(),
+      Registration.countDocuments()
+    ]);
 
     // Get recent organizers
     const recentOrganizers = await Organizer.find()
@@ -371,22 +376,19 @@ const getAdminStats = async (req, res) => {
   try {
     const User = require('../models/User');
     const Event = require('../models/Event');
-    const PasswordResetRequest = require('../models/PasswordResetRequest');
     const { USER_ROLES } = require('../utils/constants');
 
-    const [totalUsers, totalOrganizers, totalEvents, pendingPasswordResets] = await Promise.all([
+    const [totalUsers, totalOrganizers, totalEvents] = await Promise.all([
       User.countDocuments({ role: { $ne: USER_ROLES.ADMIN } }),
       Organizer.countDocuments(),
-      Event.countDocuments(),
-      PasswordResetRequest.countDocuments({ status: 'pending' })
+      Event.countDocuments()
     ]);
 
     res.status(200).json({
       success: true,
       totalUsers,
       totalOrganizers,
-      totalEvents,
-      pendingPasswordResets
+      totalEvents
     });
   } catch (error) {
     console.error('Get admin stats error:', error);
@@ -395,11 +397,12 @@ const getAdminStats = async (req, res) => {
 };
 
 /**
- * Reset organizer password
+ * Send a self-service password reset link to an organizer, on the admin's behalf.
  * POST /admin/organizers/:id/reset-password
  *
- * Generates a new temporary password, hashes and saves it, returns the
- * plain-text password to the admin so it can be shared with the organizer.
+ * Replaces the old flow of generating a temporary password and displaying it
+ * to the admin to relay manually — the organizer now sets their own new
+ * password via the emailed link, same as the self-service forgot-password flow.
  */
 const resetOrganizerPassword = async (req, res) => {
   try {
@@ -412,23 +415,22 @@ const resetOrganizerPassword = async (req, res) => {
       });
     }
 
-    const temporaryPassword = generateTemporaryPassword();
-    organizer.passwordHash = await hashPassword(temporaryPassword);
-    await organizer.save();
+    await issuePasswordReset({
+      actorType: ACTOR_TYPES.ORGANIZER,
+      actorId: organizer._id,
+      recipientEmail: organizer.contactEmail,
+      recipientName: organizer.name
+    });
 
     res.status(200).json({
       success: true,
-      message: `Password reset successfully for ${organizer.name}`,
-      credentials: {
-        loginEmail: organizer.loginEmail,
-        temporaryPassword
-      }
+      message: `A password reset link has been emailed to ${organizer.name}'s contact address.`
     });
   } catch (error) {
     console.error('Reset organizer password error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to reset password'
+      message: 'Failed to send password reset link'
     });
   }
 };
@@ -439,7 +441,7 @@ const resetOrganizerPassword = async (req, res) => {
  *
  * Removes the organizer and ALL associated data in dependency order:
  *   Attendance → Feedback → DiscussionMessage → Ticket → Registration
- *   → Team → PasswordResetRequest → Event → Organizer
+ *   → Team → PasswordResetToken → Event → Organizer
  */
 const deleteOrganizer = async (req, res) => {
   try {
@@ -459,7 +461,7 @@ const deleteOrganizer = async (req, res) => {
     const Attendance          = require('../models/Attendance');
     const Feedback            = require('../models/Feedback');
     const DiscussionMessage   = require('../models/DiscussionMessage');
-    const PasswordResetRequest = require('../models/PasswordResetRequest');
+    const PasswordResetToken  = require('../models/PasswordResetToken');
 
     // 1. Find all events owned by this organizer
     const events = await Event.find({ organizerId: req.params.id }).select('_id');
@@ -494,8 +496,8 @@ const deleteOrganizer = async (req, res) => {
       await Event.deleteMany({ organizerId: req.params.id });
     }
 
-    // 10. Delete password reset requests for this organizer
-    await PasswordResetRequest.deleteMany({ organizerId: req.params.id });
+    // 10. Delete password reset tokens for this organizer
+    await PasswordResetToken.deleteMany({ actorType: ACTOR_TYPES.ORGANIZER, actorId: req.params.id });
 
     // 11. Finally delete the organizer itself
     await Organizer.findByIdAndDelete(req.params.id);

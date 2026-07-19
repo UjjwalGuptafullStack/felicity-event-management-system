@@ -1,13 +1,13 @@
 /**
- * Team Chat Socket Handler
+ * Realtime Socket Handler
  *
- * Architecture:
- *  - Each team gets its own Socket.io room: `team-<teamId>`
- *  - A lightweight notification room `notify-team-<teamId>` lets clients
- *    receive new-message badges without opening the full chat.
- *  - Presence (online members) is tracked in memory per teamId.
- *  - Typing indicators are transient; they are NOT persisted.
- *  - Message persistence lives in ChatMessage model.
+ * Serves two features on the same Socket.io server:
+ *  1. Team chat — each team gets its own room `team-<teamId>`; a lightweight
+ *     notification room `notify-team-<teamId>` lets clients receive
+ *     new-message badges without opening the full chat. Participants only.
+ *  2. Personal notifications — every authenticated actor (participant,
+ *     organizer, or admin) auto-joins a personal room `notify-actor-<type>-<id>`
+ *     on connect, used by utils/notify.js to push live in-app notifications.
  *
  * Security:
  *  - JWT is verified on every socket handshake (middleware).
@@ -18,6 +18,22 @@
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
 const config = require('../config/env');
+
+let ioInstance = null;
+
+/** Personal notification room name for a given actor. */
+const actorRoom = (actorType, actorId) => `notify-actor-${actorType}-${actorId}`;
+
+/**
+ * Emit a live notification to a specific actor, if they have a socket open.
+ * Safe to call even if Socket.io hasn't been set up yet (e.g. in tests) —
+ * it's a no-op in that case since notifications are already persisted to
+ * the database by the caller.
+ */
+const emitNotificationToActor = (actorType, actorId, notification) => {
+  if (!ioInstance) return;
+  ioInstance.to(actorRoom(actorType, actorId)).emit('notification:new', notification);
+};
 
 // ─── Presence tracking ────────────────────────────────────────────────────────
 // teamId → Map<userId, { name, count }>   (count = # active sockets)
@@ -58,6 +74,8 @@ function setupTeamChat(httpServer) {
   });
 
   // ── Auth middleware ──────────────────────────────────────────────────────────
+  // Any authenticated actor (participant, organizer, admin) may connect — team
+  // chat features below still gate themselves to participants where relevant.
   io.use(async (socket, next) => {
     try {
       const token = socket.handshake.auth?.token;
@@ -66,18 +84,24 @@ function setupTeamChat(httpServer) {
       const payload = jwt.verify(token, config.jwtSecret);
       if (!payload?.id) return next(new Error('Invalid token'));
 
-      // Only participants use team chat
-      if (payload.actorType !== 'user' || payload.role !== 'participant') {
-        return next(new Error('Participants only'));
+      // Resolve display name from DB (JWT only carries id/actorType/role)
+      let name = '';
+      if (payload.actorType === 'user') {
+        const User = require('../models/User');
+        const user = await User.findById(payload.id).select('firstName lastName');
+        if (!user) return next(new Error('User not found'));
+        name = `${user.firstName} ${user.lastName}`.trim();
+      } else if (payload.actorType === 'organizer') {
+        const Organizer = require('../models/Organizer');
+        const organizer = await Organizer.findById(payload.id).select('name');
+        if (!organizer) return next(new Error('Organizer not found'));
+        name = organizer.name;
       }
 
-      // Resolve display name from DB (JWT only carries id/actorType/role)
-      const User = require('../models/User');
-      const user = await User.findById(payload.id).select('firstName lastName');
-      if (!user) return next(new Error('User not found'));
-
-      socket.userId   = payload.id;
-      socket.userName = `${user.firstName} ${user.lastName}`.trim();
+      socket.userId     = payload.id;
+      socket.userName   = name;
+      socket.actorType  = payload.actorType;
+      socket.actorRole  = payload.role || null;
       socket.joinedTeams = new Set();
       next();
     } catch {
@@ -87,6 +111,8 @@ function setupTeamChat(httpServer) {
 
   // ── Connection ───────────────────────────────────────────────────────────────
   io.on('connection', (socket) => {
+    // Every actor auto-joins their personal notification room
+    socket.join(actorRoom(socket.actorType, socket.userId));
 
     // ── join-team ──────────────────────────────────────────────────────────────
     socket.on('join-team', async ({ teamId }) => {
@@ -236,7 +262,8 @@ function setupTeamChat(httpServer) {
     });
   });
 
+  ioInstance = io;
   return io;
 }
 
-module.exports = { setupTeamChat };
+module.exports = { setupTeamChat, emitNotificationToActor };

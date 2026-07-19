@@ -11,7 +11,7 @@ const config = {
   nodeEnv: process.env.NODE_ENV || 'development',
 
   // Database
-  mongodbUri: process.env.MONGODB_URI || 'mongodb://localhost:27017/felicity-events',
+  mongodbUri: process.env.MONGODB_URI || 'mongodb://localhost:27017/convene-events',
 
   // JWT
   jwtSecret: process.env.JWT_SECRET,
@@ -20,8 +20,20 @@ const config = {
   // Bcrypt
   bcryptRounds: parseInt(process.env.BCRYPT_ROUNDS) || 10,
 
-  // Email validation
-  iiitEmailDomain: process.env.IIIT_EMAIL_DOMAIN || '@iiit.ac.in',
+  // Institution branding — used to label "affiliated" participants (e.g. students of a
+  // specific college) versus the general public. Leave INSTITUTION_EMAIL_DOMAINS empty
+  // to disable the affiliated/general distinction entirely.
+  institutionName: process.env.INSTITUTION_NAME || 'Your Institution',
+  institutionEmailDomains: (process.env.INSTITUTION_EMAIL_DOMAINS || '')
+    .split(',')
+    .map((d) => d.trim().toLowerCase())
+    .filter(Boolean),
+
+  // Domain used for auto-generated organizer login emails (e.g. tech-club@<domain>)
+  organizerEmailDomain: process.env.ORGANIZER_EMAIL_DOMAIN || 'clubs.convene.app',
+
+  // Public app URL, used to build links in emails (e.g. password reset links)
+  appUrl: process.env.APP_URL || 'http://localhost:5173',
 
   // Admin bootstrap
   admin: {
@@ -38,7 +50,7 @@ const config = {
     secure: process.env.SMTP_SECURE === 'true',
     user: process.env.SMTP_USER || '',
     pass: process.env.SMTP_PASS || '',
-    from: process.env.SMTP_FROM || 'Felicity Events <noreply@felicity.iiit.ac.in>'
+    from: process.env.SMTP_FROM || 'Convene <noreply@convene.app>'
   }
 };
 

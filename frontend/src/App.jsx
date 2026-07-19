@@ -6,7 +6,8 @@ import Home from './pages/Home';
 import Register from './pages/auth/Register';
 import ParticipantLogin from './pages/auth/ParticipantLogin';
 import OrganizerLogin from './pages/auth/OrganizerLogin';
-import OrganizerPasswordReset from './pages/auth/OrganizerPasswordReset';
+import ForgotPassword from './pages/auth/ForgotPassword';
+import ResetPassword from './pages/auth/ResetPassword';
 import AdminLogin from './pages/auth/AdminLogin';
 
 // Participant pages
@@ -28,10 +29,10 @@ import OrganizerEventDetail from './pages/organizer/EventDetail';
 import OrganizerProfile from './pages/organizer/Profile';
 import MerchandiseApprovals from './pages/organizer/MerchandiseApprovals';
 import AttendanceScanner from './pages/organizer/AttendanceScanner';
+import Analytics from './pages/organizer/Analytics';
 
 // Admin pages
 import AdminDashboard from './pages/admin/Dashboard';
-import PasswordResetRequests from './pages/admin/PasswordResetRequests';
 import ManageOrganizers from './pages/admin/ManageOrganizers';
 
 // Route protection
@@ -52,7 +53,8 @@ function AppRoutes() {
       <Route path="/register" element={<Register />} />
       <Route path="/login/participant" element={<ParticipantLogin />} />
       <Route path="/login/organizer" element={<OrganizerLogin />} />
-      <Route path="/organizer/forgot-password" element={<OrganizerPasswordReset />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/login/admin" element={<AdminLogin />} />
 
       {/* Participant Onboarding - protected but no layout */}
@@ -106,6 +108,7 @@ function AppRoutes() {
         <Route path="profile" element={<OrganizerProfile />} />
         <Route path="merchandise-approvals" element={<MerchandiseApprovals />} />
         <Route path="attendance/:eventId" element={<AttendanceScanner />} />
+        <Route path="analytics" element={<Analytics />} />
       </Route>
 
       <Route
@@ -113,14 +116,6 @@ function AppRoutes() {
         element={
           <RoleRoute allowedActorType="user" allowedRole="admin">
             <AdminDashboard />
-          </RoleRoute>
-        }
-      />
-      <Route
-        path="/admin/password-resets"
-        element={
-          <RoleRoute allowedActorType="user" allowedRole="admin">
-            <PasswordResetRequests />
           </RoleRoute>
         }
       />

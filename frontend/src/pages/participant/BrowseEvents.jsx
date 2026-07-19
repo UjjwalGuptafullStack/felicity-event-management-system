@@ -48,20 +48,21 @@ function BrowseEvents() {
     fetchData();
   }, []);
 
-  // Mapping from user interest keys to organizer category strings
+  // Mapping from user interest keys to organizer category slugs
+  // (see backend/src/utils/constants.js ORGANIZER_CATEGORIES for the canonical list)
   const INTEREST_TO_ORG_CATEGORY = {
-    tech: ['technical', 'tech', 'technology'],
+    tech: ['technical'],
     sports: ['sports'],
-    cultural: ['cultural', 'dance', 'cultural & arts'],
-    music: ['music & fine arts', 'music'],
-    dance: ['cultural', 'cultural & arts'],
-    literature: ['literary & debate', 'literature', 'debate'],
+    cultural: ['cultural'],
+    music: ['music-fine-arts'],
+    dance: ['cultural'],
+    literature: ['literary-debate'],
     gaming: ['gaming'],
-    science: ['technical', 'science', 'research'],
+    science: ['technical'],
     entrepreneurship: ['entrepreneurship'],
-    design: ['design & creativity', 'design'],
-    photography: ['media & photography', 'photography', 'media'],
-    social: ['social & volunteer', 'social'],
+    design: ['music-fine-arts'],
+    photography: ['media-photography'],
+    social: ['social-volunteer'],
   };
 
   const isRecommendedForUser = (event) => {
@@ -72,7 +73,7 @@ function BrowseEvents() {
     const orgCat = (event.organizer?.category || '').toLowerCase();
     return userInterests.some(interest => {
       const targets = INTEREST_TO_ORG_CATEGORY[interest] || [];
-      return targets.some(t => orgCat.includes(t) || t.includes(orgCat));
+      return targets.includes(orgCat);
     });
   };
 

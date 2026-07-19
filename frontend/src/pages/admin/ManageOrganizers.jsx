@@ -11,6 +11,8 @@ import {
   resetOrganizerPassword,
 } from '../../api/admin';
 import { GradientButton } from '../../components/design-system/GradientButton';
+import { ThemeToggle } from '../../components/ThemeToggle';
+import { ORGANIZER_CATEGORIES, getCategoryLabel } from '../../utils/organizerCategories';
 import {
   UserCog,
   LayoutDashboard,
@@ -27,7 +29,6 @@ import {
   Users,
   ChevronDown,
   KeyRound,
-  X,
 } from 'lucide-react';
 
 const initialFormState = {
@@ -83,7 +84,6 @@ function ManageOrganizers() {
   const [notice, setNotice] = useState(null);
   const [credentials, setCredentials] = useState(null);
   const [confirmDialog, setConfirmDialog] = useState(null);
-  const [resetResult, setResetResult] = useState(null); // { organizerName, loginEmail, temporaryPassword }
 
   useEffect(() => {
     fetchOrganizers();
@@ -169,21 +169,18 @@ function ManageOrganizers() {
 
   const handleResetPassword = (organizer) => {
     setConfirmDialog({
-      title: 'Reset Password',
-      message: `Generate a new password for "${organizer.name}"? The organizer will need to use the new password next time they log in.`,
+      title: 'Send Password Reset Link',
+      message: `Email a password reset link to "${organizer.name}"'s contact address? They'll be able to set their own new password from the link.`,
       danger: false,
-      confirmLabel: 'Reset Password',
+      confirmLabel: 'Send Reset Link',
       onConfirm: async () => {
         setConfirmDialog(null);
         const id = organizer.id || organizer._id;
         try {
           const response = await resetOrganizerPassword(id);
-          setResetResult({
-            organizerName: organizer.name,
-            ...response.data.credentials
-          });
+          showNotice('success', response.data?.message || `Reset link sent to ${organizer.name}.`);
         } catch (error) {
-          showNotice('error', error.response?.data?.message || 'Failed to reset password.');
+          showNotice('error', error.response?.data?.message || 'Failed to send reset link.');
         }
       },
     });
@@ -224,6 +221,7 @@ function ManageOrganizers() {
               <LayoutDashboard className="w-4 h-4" />
               <span className="hidden sm:inline">Dashboard</span>
             </motion.button>
+            <ThemeToggle />
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
@@ -250,57 +248,6 @@ function ManageOrganizers() {
         />
       )}
 
-      {/* Reset Password Result Modal */}
-      <AnimatePresence>
-        {resetResult && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4"
-            onClick={() => setResetResult(null)}
-          >
-            <motion.div
-              initial={{ scale: 0.92, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.92, opacity: 0 }}
-              className="bg-card border border-border rounded-2xl shadow-2xl p-8 max-w-md w-full"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                    <KeyRound className="w-5 h-5 text-primary" />
-                  </div>
-                  <h3 className="text-lg font-bold text-foreground">Password Reset</h3>
-                </div>
-                <button onClick={() => setResetResult(null)} className="text-muted-foreground hover:text-foreground">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              <p className="text-muted-foreground text-sm mb-5">
-                New credentials for <strong className="text-foreground">{resetResult.organizerName}</strong>. Share these with the organizer.
-              </p>
-              <div className="space-y-3">
-                <div className="bg-muted/10 border border-border rounded-xl px-4 py-3">
-                  <p className="text-xs text-muted-foreground mb-1">Login Email</p>
-                  <p className="font-mono text-primary font-medium break-all">{resetResult.loginEmail}</p>
-                </div>
-                <div className="bg-primary/10 border border-primary/20 rounded-xl px-4 py-3">
-                  <p className="text-xs text-muted-foreground mb-1">New Temporary Password</p>
-                  <p className="font-mono text-primary text-lg font-bold tracking-widest">{resetResult.temporaryPassword}</p>
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground mt-4">
-                Note this password now — it cannot be retrieved again after closing this dialog.
-              </p>
-              <div className="mt-5 flex justify-end">
-                <GradientButton size="sm" onClick={() => setResetResult(null)}>Done</GradientButton>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       <div className="container mx-auto px-6 py-10 space-y-8 max-w-6xl">
         {/* Notice */}
@@ -375,7 +322,7 @@ function ManageOrganizers() {
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
-                  placeholder="e.g. Felicity Tech Club"
+                  placeholder="e.g. Convene Tech Club"
                   className="w-full px-4 py-3 bg-input-background border border-input-border rounded-xl text-input-foreground placeholder:text-input-placeholder focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
                   required
                 />
@@ -391,16 +338,9 @@ function ManageOrganizers() {
                     className="w-full pl-10 pr-10 py-3 bg-input-background border border-input-border rounded-xl text-input-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all appearance-none cursor-pointer"
                   >
                     <option value="">Select a category…</option>
-                    <option value="Technical">Technical</option>
-                    <option value="Cultural">Cultural</option>
-                    <option value="Sports">Sports</option>
-                    <option value="Literary & Debate">Literary &amp; Debate</option>
-                    <option value="Gaming">Gaming</option>
-                    <option value="Social & Volunteer">Social &amp; Volunteer</option>
-                    <option value="Entrepreneurship">Entrepreneurship</option>
-                    <option value="Music & Fine Arts">Music &amp; Fine Arts</option>
-                    <option value="Media & Photography">Media &amp; Photography</option>
-                    <option value="Other">Other</option>
+                    {ORGANIZER_CATEGORIES.map((c) => (
+                      <option key={c.value} value={c.value}>{c.label}</option>
+                    ))}
                   </select>
                   <ChevronDown className="w-4 h-4 text-muted-foreground absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>
@@ -541,7 +481,7 @@ function ManageOrganizers() {
                           {new Date(organizer.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
                         </p>
                       </td>
-                      <td className="py-4 px-4 text-muted-foreground">{organizer.category || '—'}</td>
+                      <td className="py-4 px-4 text-muted-foreground">{getCategoryLabel(organizer.category)}</td>
                       <td className="py-4 px-4">
                         <p className="text-foreground">{organizer.contactEmail}</p>
                         {organizer.contactNumber && (
@@ -575,7 +515,7 @@ function ManageOrganizers() {
                             whileTap={{ scale: 0.95 }}
                             onClick={() => handleResetPassword(organizer)}
                             className="p-2 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-                            title="Reset password"
+                            title="Send password reset link"
                           >
                             <KeyRound className="w-4 h-4" />
                           </motion.button>

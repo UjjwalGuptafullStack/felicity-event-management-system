@@ -22,8 +22,9 @@ const Organizer = require('../models/Organizer');
 const User = require('../models/User');
 const Team = require('../models/Team');
 const { sendRegistrationConfirmationEmail } = require('../utils/emailService');
-const { EVENT_STATUS, REGISTRATION_STATUS, REGISTRATION_TYPES, EVENT_TYPES } = require('../utils/constants');
+const { EVENT_STATUS, REGISTRATION_STATUS, REGISTRATION_TYPES, EVENT_TYPES, ACTOR_TYPES } = require('../utils/constants');
 const { computeEffectiveStatus } = require('./eventController');
+const { notify } = require('../utils/notify');
 
 /**
  * Browse events (list with filters)
@@ -392,6 +393,15 @@ const registerForEvent = async (req, res) => {
     } catch (emailErr) {
       console.warn('Registration email failed (non-fatal):', emailErr.message);
     }
+
+    notify({
+      recipientType: ACTOR_TYPES.USER,
+      recipientId: participantId,
+      type: 'registration_confirmed',
+      title: 'Registration confirmed',
+      message: `You're registered for ${event.name}. Ticket ID: ${ticket.ticketId}`,
+      link: `/participant/events/${event._id}`
+    });
 
     // 6. Return success
     res.status(201).json({

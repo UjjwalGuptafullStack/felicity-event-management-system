@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getProfile, updateProfile, changePassword } from '../../api/participant';
+import { INSTITUTION_NAME } from '../../config/institution';
+import { getCategoryLabel } from '../../utils/organizerCategories';
 import { GradientButton } from '../../components/design-system/GradientButton';
 import { User, Mail, Phone, Building2, Lock, Save, X, Tag, Eye, EyeOff, Heart, ExternalLink } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -185,7 +187,7 @@ function Profile() {
                     <span className="text-xs font-semibold text-muted-foreground uppercase">Participant Type</span>
                   </div>
                   <p className="text-foreground font-medium">
-                    {profile?.participantType === 'iiit' ? 'IIIT Student' : 'External Participant'}
+                    {profile?.participantType === 'affiliated' ? `${INSTITUTION_NAME} Member` : 'External Participant'}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">Cannot be changed</p>
                 </div>
@@ -263,7 +265,7 @@ function Profile() {
                     value={formData.collegeOrOrg}
                     onChange={(e) => setFormData({ ...formData, collegeOrOrg: e.target.value })}
                     disabled={!editing}
-                    placeholder="e.g., IIIT Hyderabad"
+                    placeholder={`e.g., ${INSTITUTION_NAME}`}
                     className="w-full px-4 py-3 bg-input-background border border-input-border rounded-xl text-input-foreground placeholder:text-input-placeholder focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                   />
                 </div>
@@ -339,7 +341,7 @@ function Profile() {
                   {formData.followedOrganizers.map(org => {
                     const orgId = org._id || org.id || org;
                     const orgName = org.name || 'Unknown';
-                    const orgCategory = org.category || '';
+                    const orgCategory = org.category ? getCategoryLabel(org.category) : '';
                     return (
                       <div
                         key={orgId}
@@ -348,7 +350,7 @@ function Profile() {
                         <Heart className="w-3.5 h-3.5 text-primary fill-current shrink-0" />
                         <span className="font-medium text-foreground">{orgName}</span>
                         {orgCategory && (
-                          <span className="text-xs text-muted-foreground capitalize">· {orgCategory}</span>
+                          <span className="text-xs text-muted-foreground">· {orgCategory}</span>
                         )}
                         <a
                           href={`/participant/organizers/${orgId}`}

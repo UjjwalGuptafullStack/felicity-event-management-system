@@ -80,10 +80,10 @@ const sendEmail = async ({ to, subject, html, text, attachments }) => {
 
   try {
     // config.email.from is already a fully-formatted address string,
-    // e.g. "Felicity Events <ujjwal.pg.gupta@gmail.com>"
+    // e.g. "Convene <ujjwal.pg.gupta@gmail.com>"
     // Fall back to wrapping the bare user address if 'from' is somehow empty.
     const fromAddress = config.email.from
-      || (config.email.user ? `"Felicity Events" <${config.email.user}>` : '"Felicity Events" <noreply@felicity.local>');
+      || (config.email.user ? `"Convene" <${config.email.user}>` : '"Convene" <noreply@convene.app>');
 
     const info = await t.sendMail({
       from: fromAddress,
@@ -114,38 +114,44 @@ const sendEmail = async ({ to, subject, html, text, attachments }) => {
   }
 };
 
+/** Shared HTML shell for transactional emails — keeps every template visually consistent. */
+const emailShell = ({ headerGradient, headerTitle, headerSubtitle, bodyHtml }) => `
+  <div style="font-family:'Inter',Arial,sans-serif;background:#0b0f0d;color:#e6f2ec;padding:40px;border-radius:12px;max-width:600px;margin:auto;">
+    <div style="background:${headerGradient};border-radius:10px;padding:24px 28px;margin-bottom:28px;">
+      <h1 style="margin:0;font-size:22px;color:#eafff6;">${headerTitle}</h1>
+      <p style="margin:6px 0 0;color:#a7f3d0;font-size:14px;">${headerSubtitle}</p>
+    </div>
+    ${bodyHtml}
+    <div style="border-top:1px solid #23312b;margin-top:32px;padding-top:16px;">
+      <p style="margin:0;font-size:12px;color:#8aa39a;">Convene &mdash; Event Management</p>
+    </div>
+  </div>
+`;
+
 /**
  * Send organizer welcome email with auto-generated credentials.
  */
 const sendOrganizerCredentialsEmail = async (organizer, credentials) => {
   const { loginEmail, temporaryPassword } = credentials;
 
-  const html = `
-    <div style="font-family: 'Consolas', 'Courier New', monospace; background:#0b0f0d; color:#e6f2ec; padding:40px; border-radius:12px; max-width:600px; margin:auto;">
-      <div style="background:linear-gradient(135deg,#1b7f5f,#27a57a); border-radius:10px; padding:24px 28px; margin-bottom:28px;">
-        <h1 style="margin:0; font-size:22px; color:#eafff6;">Welcome to Felicity Events</h1>
-        <p style="margin:6px 0 0; color:#a7f3d0; font-size:14px;">Your organizer account has been created.</p>
-      </div>
-
+  const html = emailShell({
+    headerGradient: 'linear-gradient(135deg,#1b7f5f,#27a57a)',
+    headerTitle: 'Welcome to Convene',
+    headerSubtitle: 'Your organizer account has been created.',
+    bodyHtml: `
       <p style="color:#b2c7bf;">Hello <strong style="color:#e6f2ec;">${organizer.name}</strong>,</p>
-      <p style="color:#b2c7bf;">An admin has provisioned an organizer account for you on the Felicity Event Management Platform. Use the credentials below to log in.</p>
-
-      <div style="background:#121b17; border:1px solid #23312b; border-radius:10px; padding:20px 24px; margin:24px 0;">
-        <p style="margin:0 0 12px; font-size:13px; color:#8aa39a; text-transform:uppercase; letter-spacing:.5px;">Login Credentials</p>
+      <p style="color:#b2c7bf;">An admin has provisioned an organizer account for you on Convene. Use the credentials below to log in.</p>
+      <div style="background:#121b17;border:1px solid #23312b;border-radius:10px;padding:20px 24px;margin:24px 0;">
+        <p style="margin:0 0 12px;font-size:13px;color:#8aa39a;text-transform:uppercase;letter-spacing:.5px;">Login Credentials</p>
         <p style="margin:0 0 8px;"><span style="color:#8aa39a;">Login Email:</span> <strong style="color:#3ddc97;">${loginEmail}</strong></p>
         <p style="margin:0;"><span style="color:#8aa39a;">Temporary Password:</span> <strong style="color:#3ddc97;">${temporaryPassword}</strong></p>
       </div>
-
       <p style="color:#b2c7bf;"><strong style="color:#e6f2ec;">Important:</strong> Please change your password after your first login.</p>
-
-      <div style="border-top:1px solid #23312b; margin-top:32px; padding-top:16px;">
-        <p style="margin:0; font-size:12px; color:#8aa39a;">Felicity Event Management System &mdash; IIIT Hyderabad</p>
-      </div>
-    </div>
-  `;
+    `
+  });
 
   const text = `
-Welcome to Felicity Events, ${organizer.name}!
+Welcome to Convene, ${organizer.name}!
 
 Your organizer account has been created.
 
@@ -154,113 +160,56 @@ Temporary Password: ${temporaryPassword}
 
 Please log in and change your password immediately.
 
-Felicity Event Management System – IIIT Hyderabad
+Convene — Event Management
   `.trim();
 
   return sendEmail({
     to: organizer.contactEmail,
-    subject: 'Your Felicity Organizer Account Credentials',
+    subject: 'Your Convene Organizer Account Credentials',
     html,
     text,
   });
 };
 
 /**
- * Send password reset approval email with new temporary password.
+ * Send a self-service password reset link (used for both participants and organizers).
  */
-const sendPasswordResetApprovedEmail = async (organizer, temporaryPassword) => {
-  const html = `
-    <div style="font-family: 'Consolas', 'Courier New', monospace; background:#0b0f0d; color:#e6f2ec; padding:40px; border-radius:12px; max-width:600px; margin:auto;">
-      <div style="background:linear-gradient(135deg,#1b7f5f,#27a57a); border-radius:10px; padding:24px 28px; margin-bottom:28px;">
-        <h1 style="margin:0; font-size:22px; color:#eafff6;">Password Reset Approved</h1>
-        <p style="margin:6px 0 0; color:#a7f3d0; font-size:14px;">Your password reset request has been processed.</p>
+const sendPasswordResetEmail = async (toEmail, name, resetUrl) => {
+  const html = emailShell({
+    headerGradient: 'linear-gradient(135deg,#1b7f5f,#27a57a)',
+    headerTitle: 'Reset Your Password',
+    headerSubtitle: 'We received a request to reset your Convene password.',
+    bodyHtml: `
+      <p style="color:#b2c7bf;">Hello${name ? ` <strong style="color:#e6f2ec;">${name}</strong>` : ''},</p>
+      <p style="color:#b2c7bf;">Click the button below to choose a new password. This link expires in 1 hour and can only be used once.</p>
+      <div style="text-align:center;margin:28px 0;">
+        <a href="${resetUrl}" style="display:inline-block;background:linear-gradient(135deg,#1b7f5f,#27a57a);color:#eafff6;text-decoration:none;font-weight:600;padding:12px 28px;border-radius:10px;">Reset Password</a>
       </div>
-
-      <p style="color:#b2c7bf;">Hello <strong style="color:#e6f2ec;">${organizer.name}</strong>,</p>
-      <p style="color:#b2c7bf;">Your password reset request has been approved. Your account password has been updated.</p>
-
-      <div style="background:#121b17; border:1px solid #23312b; border-radius:10px; padding:20px 24px; margin:24px 0;">
-        <p style="margin:0 0 12px; font-size:13px; color:#8aa39a; text-transform:uppercase; letter-spacing:.5px;">New Login Credentials</p>
-        <p style="margin:0 0 8px;"><span style="color:#8aa39a;">Login Email:</span> <strong style="color:#3ddc97;">${organizer.loginEmail}</strong></p>
-        <p style="margin:0;"><span style="color:#8aa39a;">New Temporary Password:</span> <strong style="color:#3ddc97;">${temporaryPassword}</strong></p>
-      </div>
-
-      <p style="color:#b2c7bf;"><strong style="color:#e6f2ec;">Important:</strong> Please log in with this new password and change it immediately for security.</p>
-
-      <div style="border-top:1px solid #23312b; margin-top:32px; padding-top:16px;">
-        <p style="margin:0; font-size:12px; color:#8aa39a;">Felicity Event Management System &mdash; IIIT Hyderabad</p>
-      </div>
-    </div>
-  `;
-
-  const text = `
-Password Reset Approved
-
-Hello ${organizer.name},
-
-Your password reset request has been approved.
-
-New Login Credentials:
-Login Email: ${organizer.loginEmail}
-New Temporary Password: ${temporaryPassword}
-
-Please log in with this new password and change it immediately for security.
-
-Felicity Event Management System – IIIT Hyderabad
-  `.trim();
-
-  return sendEmail({
-    to: organizer.contactEmail,
-    subject: 'Password Reset Approved - Felicity Events',
-    html,
-    text,
+      <p style="color:#8aa39a;font-size:13px;">If the button doesn't work, copy and paste this link into your browser:<br>
+        <a href="${resetUrl}" style="color:#3ddc97;word-break:break-all;">${resetUrl}</a>
+      </p>
+      <p style="color:#b2c7bf;">If you didn't request this, you can safely ignore this email — your password will remain unchanged.</p>
+    `
   });
-};
-
-/**
- * Send password reset rejection email with admin comment.
- */
-const sendPasswordResetRejectedEmail = async (organizer, adminComment) => {
-  const html = `
-    <div style="font-family: 'Consolas', 'Courier New', monospace; background:#0b0f0d; color:#e6f2ec; padding:40px; border-radius:12px; max-width:600px; margin:auto;">
-      <div style="background:linear-gradient(135deg,#8b3a3e,#b44749); border-radius:10px; padding:24px 28px; margin-bottom:28px;">
-        <h1 style="margin:0; font-size:22px; color:#ffe6e6;">Password Reset Request Declined</h1>
-        <p style="margin:6px 0 0; color:#ffcccc; font-size:14px;">Your request has been reviewed by an administrator.</p>
-      </div>
-
-      <p style="color:#b2c7bf;">Hello <strong style="color:#e6f2ec;">${organizer.name}</strong>,</p>
-      <p style="color:#b2c7bf;">Unfortunately, your password reset request has been declined by an administrator.</p>
-
-      ${adminComment ? `
-      <div style="background:#1a1212; border:1px solid #3d2323; border-radius:10px; padding:20px 24px; margin:24px 0;">
-        <p style="margin:0 0 12px; font-size:13px; color:#c88a8a; text-transform:uppercase; letter-spacing:.5px;">Administrator's Comment</p>
-        <p style="margin:0; color:#e6c7c7; line-height:1.6;">${adminComment}</p>
-      </div>
-      ` : ''}
-
-      <p style="color:#b2c7bf;">If you believe this was an error or need further assistance, please contact the system administrator directly.</p>
-
-      <div style="border-top:1px solid #23312b; margin-top:32px; padding-top:16px;">
-        <p style="margin:0; font-size:12px; color:#8aa39a;">Felicity Event Management System &mdash; IIIT Hyderabad</p>
-      </div>
-    </div>
-  `;
 
   const text = `
-Password Reset Request Declined
+Reset Your Password
 
-Hello ${organizer.name},
+Hello${name ? ` ${name}` : ''},
 
-Unfortunately, your password reset request has been declined by an administrator.
+We received a request to reset your Convene password. Use the link below within
+the next hour to choose a new one:
 
-${adminComment ? `Administrator's Comment:\n${adminComment}\n\n` : ''}If you believe this was an error or need further assistance, please contact the system administrator directly.
+${resetUrl}
 
-Felicity Event Management System – IIIT Hyderabad
+If you didn't request this, you can safely ignore this email.
+
+Convene — Event Management
   `.trim();
 
   return sendEmail({
-    to: organizer.contactEmail,
-    subject: 'Password Reset Request Declined - Felicity Events',
+    to: toEmail,
+    subject: 'Reset your Convene password',
     html,
     text,
   });
@@ -290,13 +239,11 @@ const sendRegistrationConfirmationEmail = async (participant, event, ticket) => 
     console.warn('QR code generation failed (non-fatal):', qrErr.message);
   }
 
-  const html = `
-    <div style="font-family:'Consolas','Courier New',monospace;background:#0b0f0d;color:#e6f2ec;padding:40px;border-radius:12px;max-width:600px;margin:auto;">
-      <div style="background:linear-gradient(135deg,#1d6a40,#2e9e62);border-radius:10px;padding:24px 28px;margin-bottom:28px;">
-        <h1 style="margin:0;font-size:22px;color:#ecfdf5;">Registration Confirmed!</h1>
-        <p style="margin:6px 0 0;color:#a7f3d0;font-size:14px;">Your ticket is ready for ${event.name}</p>
-      </div>
-
+  const html = emailShell({
+    headerGradient: 'linear-gradient(135deg,#1d6a40,#2e9e62)',
+    headerTitle: 'Registration Confirmed!',
+    headerSubtitle: `Your ticket is ready for ${event.name}`,
+    bodyHtml: `
       <p style="color:#b2c7bf;">Hello <strong style="color:#e6f2ec;">${participant.name || participant.email}</strong>,</p>
       <p style="color:#b2c7bf;">Your registration has been confirmed. Here are your event and ticket details:</p>
 
@@ -311,17 +258,13 @@ const sendRegistrationConfirmationEmail = async (participant, event, ticket) => 
       <div style="background:#0e1f16;border:2px solid #2e9e62;border-radius:10px;padding:20px 24px;margin:24px 0;text-align:center;">
         <p style="margin:0 0 8px;font-size:13px;color:#6fcf97;text-transform:uppercase;letter-spacing:.5px;">Your Ticket ID</p>
         <p style="margin:0;font-size:24px;font-family:monospace;font-weight:bold;color:#4ade80;letter-spacing:2px;">${ticket.ticketId}</p>
-        ${qrBuffer ? '<img src="cid:ticketqr@felicity" width="180" height="180" style="display:block;margin:16px auto 8px;border-radius:8px;" alt="Ticket QR Code" />' : ''}
+        ${qrBuffer ? '<img src="cid:ticketqr@convene" width="180" height="180" style="display:block;margin:16px auto 8px;border-radius:8px;" alt="Ticket QR Code" />' : ''}
         <p style="margin:8px 0 0;font-size:12px;color:#8aa39a;">Show this QR code at the event entrance</p>
       </div>
 
       <p style="color:#b2c7bf;">Please keep this email as your registration proof. We look forward to seeing you at the event!</p>
-
-      <div style="border-top:1px solid #23312b;margin-top:32px;padding-top:16px;">
-        <p style="margin:0;font-size:12px;color:#8aa39a;">Felicity Event Management System &mdash; IIIT Hyderabad</p>
-      </div>
-    </div>
-  `;
+    `
+  });
 
   const text = `
 Registration Confirmed – ${event.name}
@@ -338,7 +281,7 @@ Ticket ID: ${ticket.ticketId}
 
 Please keep this email as your registration proof.
 
-Felicity Event Management System – IIIT Hyderabad
+Convene — Event Management
   `.trim();
 
   return sendEmail({
@@ -350,67 +293,16 @@ Felicity Event Management System – IIIT Hyderabad
       attachments: [{
         filename: 'ticket-qr.png',
         content: qrBuffer,
-        cid: 'ticketqr@felicity',
+        cid: 'ticketqr@convene',
         contentType: 'image/png'
       }]
     })
   });
 };
 
-/**
- * Notify organizer that their self-change password request was approved.
- * No temp password — they log in and set their own new password.
- */
-const sendPasswordResetApprovalGrantedEmail = async (organizer, adminComment) => {
-  const html = `
-    <div style="font-family: 'Consolas', 'Courier New', monospace; background:#0b0f0d; color:#e6f2ec; padding:40px; border-radius:12px; max-width:600px; margin:auto;">
-      <div style="background:linear-gradient(135deg,#1b7f5f,#27a57a); border-radius:10px; padding:24px 28px; margin-bottom:28px;">
-        <h1 style="margin:0; font-size:22px; color:#eafff6;">Password Change Approved</h1>
-        <p style="margin:6px 0 0; color:#a7f3d0; font-size:14px;">Your request to change your password has been approved.</p>
-      </div>
-
-      <p style="color:#b2c7bf;">Hello <strong style="color:#e6f2ec;">${organizer.name}</strong>,</p>
-      <p style="color:#b2c7bf;">An administrator has approved your password change request. You can now log in to the organizer portal and set your new password from the <strong style="color:#3ddc97;">Profile → Change Password</strong> section.</p>
-
-      ${adminComment ? `
-      <div style="background:#121b17; border:1px solid #23312b; border-radius:10px; padding:20px 24px; margin:24px 0;">
-        <p style="margin:0 0 12px; font-size:13px; color:#8aa39a; text-transform:uppercase; letter-spacing:.5px;">Administrator's Note</p>
-        <p style="margin:0; color:#e6f2ec; line-height:1.6;">${adminComment}</p>
-      </div>
-      ` : ''}
-
-      <p style="color:#b2c7bf;">Please log in and update your password at your earliest convenience.</p>
-
-      <div style="border-top:1px solid #23312b; margin-top:32px; padding-top:16px;">
-        <p style="margin:0; font-size:12px; color:#8aa39a;">Felicity Event Management System &mdash; IIIT Hyderabad</p>
-      </div>
-    </div>
-  `;
-
-  const text = `
-Password Change Request Approved
-
-Hello ${organizer.name},
-
-An administrator has approved your password change request. Please log in and set your new password from the Profile → Change Password section.
-
-${adminComment ? `Administrator's Note:\n${adminComment}\n\n` : ''}Felicity Event Management System – IIIT Hyderabad
-  `.trim();
-
-  return sendEmail({
-    to: organizer.contactEmail,
-    subject: 'Password Change Request Approved - Felicity Events',
-    html,
-    text,
-  });
-};
-
 module.exports = {
   sendEmail,
   sendOrganizerCredentialsEmail,
-  sendPasswordResetApprovedEmail,
-  sendPasswordResetRejectedEmail,
-  sendPasswordResetApprovalGrantedEmail,
+  sendPasswordResetEmail,
   sendRegistrationConfirmationEmail,
 };
-

@@ -93,6 +93,9 @@ const ParticipantLogin = () => {
             Don't have an account? <Link to="/register">Register</Link>
           </p>
           <p>
+            <Link to="/forgot-password?actorType=participant">Forgot password?</Link>
+          </p>
+          <p>
             <Link to="/">Back to Home</Link>
           </p>
         </div>

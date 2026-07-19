@@ -58,8 +58,7 @@ const teamSchema = new mongoose.Schema({
   }
 });
 
-// Fast lookups by invite code
-teamSchema.index({ inviteCode: 1 });
+// Note: inviteCode already has a unique index via field definition (unique: true)
 // All teams for an event
 teamSchema.index({ eventId: 1 });
 // All teams a user is part of

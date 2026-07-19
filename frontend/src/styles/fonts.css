@@ -1,6 +1,9 @@
-/* Consolas is a system font - no import needed */
-/* Fallback to Courier New and monospace */
-
+/* Inter (body) + Sora (headings/display) are loaded via Google Fonts in index.html.
+   --font-sans / --font-display are defined in theme.css; applying the sans stack
+   here via the universal selector ensures form controls (button/input/select),
+   which browsers don't inherit font-family into by default, pick it up too.
+   Heading elements override this with --font-display via higher selector
+   specificity (see the @layer base rules in theme.css). */
 * {
-  font-family: 'Consolas', 'Courier New', monospace;
+  font-family: var(--font-sans);
 }

@@ -1,7 +1,9 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { useAuth } from '../context/AuthContext';
-import { LayoutDashboard, PlusCircle, User, Activity, LogOut, Sparkles } from 'lucide-react';
+import { LayoutDashboard, PlusCircle, User, Activity, LogOut, Sparkles, ShoppingBag, BarChart3 } from 'lucide-react';
+import { ThemeToggle } from './ThemeToggle';
+import { NotificationBell } from './NotificationBell';
 
 export const OrganizerNav = () => {
   const { logout } = useAuth();
@@ -12,6 +14,8 @@ export const OrganizerNav = () => {
     { path: '/organizer/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { path: '/organizer/events', icon: PlusCircle, label: 'Create Event' },
     { path: '/organizer/ongoing-events', icon: Activity, label: 'Ongoing Events' },
+    { path: '/organizer/merchandise-approvals', icon: ShoppingBag, label: 'Merchandise' },
+    { path: '/organizer/analytics', icon: BarChart3, label: 'Analytics' },
     { path: '/organizer/profile', icon: User, label: 'Profile' },
   ];
 
@@ -57,6 +61,8 @@ export const OrganizerNav = () => {
                 <span className="hidden md:inline text-sm">{item.label}</span>
               </motion.button>
             ))}
+            <NotificationBell />
+            <ThemeToggle />
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}

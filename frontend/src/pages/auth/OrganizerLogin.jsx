@@ -86,7 +86,7 @@ const OrganizerLogin = () => {
 
         <div className="auth-footer">
           <p>
-            <Link to="/organizer/forgot-password">Forgot Password?</Link>
+            <Link to="/forgot-password?actorType=organizer">Forgot Password?</Link>
           </p>
           <p>
             <Link to="/">Back to Home</Link>

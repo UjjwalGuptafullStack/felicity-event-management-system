@@ -2,93 +2,98 @@
 
 :root {
   --font-size: 16px;
-  
-  /* Dark Green Theme */
-  --primary: #1b7f5f;
-  --primary-dark: #146047;
-  --primary-light: #27a57a;
-  --primary-foreground: #eafff6;
-  
+
+  /* Typography */
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-display: 'Sora', 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+
+  /* Light theme (default) — emerald brand family on a white/near-white surface */
+  --primary: #146047;
+  --primary-dark: #0d3f2e;
+  --primary-light: #1b7f5f;
+  --primary-foreground: #ffffff;
+
   --secondary: #0f4d3a;
   --secondary-dark: #0b3a2c;
   --secondary-light: #1f6d52;
-  --secondary-foreground: #eafff6;
-  
-  --accent: #3ddc97;
-  --accent-dark: #2fb579;
-  --accent-light: #5fe3ae;
-  --accent-foreground: #0b120f;
-  
+  --secondary-foreground: #ffffff;
+
+  --accent: #0e9f6e;
+  --accent-dark: #0b7d55;
+  --accent-light: #3ddc97;
+  --accent-foreground: #ffffff;
+
   /* Backgrounds */
-  --background: #0b0f0d;
-  --background-secondary: #0f1512;
-  --foreground: #e6f2ec;
-  
+  --background: #ffffff;
+  --background-secondary: #f4f8f6;
+  --foreground: #0d1512;
+
   /* Card system */
-  --card: #121b17;
-  --card-foreground: #e6f2ec;
-  
+  --card: #ffffff;
+  --card-foreground: #0d1512;
+
   /* Neutral colors */
-  --muted: #1a2420;
-  --muted-foreground: #9eb8ae;
-  --border: #2a3d33;
-  
+  --muted: #eef3f1;
+  --muted-foreground: #5b6b64;
+  --border: #dde6e2;
+
   /* Extended text scale */
-  --foreground-secondary: #c8ddd4;
-  --foreground-dim: #7a9a90;
-  
+  --foreground-secondary: #384741;
+  --foreground-dim: #6b7c75;
+
   /* Info color (blue for team/hackathon UI) */
-  --info: #60a5fa;
+  --info: #2563eb;
   --info-foreground: #eff6ff;
-  
+
   /* Interactive states */
-  --input: #0d1a13;
-  --input-background: #0d1a13;
-  --input-foreground: #3ddc97;
-  --input-placeholder: rgba(61, 220, 151, 0.4);
-  --input-border: rgba(61, 220, 151, 0.48);
-  --input-border-focus: #3ddc97;
-  --ring: #34d399;
-  
+  --input: #ffffff;
+  --input-background: #ffffff;
+  --input-foreground: #0d1512;
+  --input-placeholder: rgba(13, 21, 18, 0.4);
+  --input-border: #d7e0dc;
+  --input-border-focus: #146047;
+  --ring: #146047;
+
   /* System colors */
-  --destructive: #ef4444;
+  --destructive: #dc2626;
   --destructive-foreground: #ffffff;
-  --success: #2fb579;
-  --success-foreground: #eafff6;
-  --warning: #eab308;
+  --success: #16a34a;
+  --success-foreground: #ffffff;
+  --warning: #d97706;
   --warning-foreground: #1a1300;
-  
+
   /* Popover */
-  --popover: #121b17;
-  --popover-foreground: #e6f2ec;
-  
+  --popover: #ffffff;
+  --popover-foreground: #0d1512;
+
   /* Switch */
-  --switch-background: #2a3a33;
-  
+  --switch-background: #d7e0dc;
+
   /* Border radius system */
   --radius: 0.75rem;
-  
+
   /* Font weights */
   --font-weight-medium: 600;
   --font-weight-normal: 400;
-  
+
   /* Sidebar */
-  --sidebar: #0f1512;
-  --sidebar-foreground: #e6f2ec;
-  --sidebar-primary: #1b7f5f;
-  --sidebar-primary-foreground: #eafff6;
-  --sidebar-accent: #16221e;
-  --sidebar-accent-foreground: #e6f2ec;
-  --sidebar-border: #23312b;
-  --sidebar-ring: #2fb579;
-  
-  /* Chart colors */
-  --chart-1: #1b7f5f;
-  --chart-2: #3ddc97;
-  --chart-3: #2fb579;
-  --chart-4: #1f6d52;
-  --chart-5: #5fe3ae;
-  
+  --sidebar: #f4f8f6;
+  --sidebar-foreground: #0d1512;
+  --sidebar-primary: #146047;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e7efeb;
+  --sidebar-accent-foreground: #0d1512;
+  --sidebar-border: #dde6e2;
+  --sidebar-ring: #146047;
+
+  /* Chart colors — fixed categorical order, validated for CVD-safety on both
+     light and dark surfaces (see docs/ARCHITECTURE.md's design-system notes) */
+  --chart-1: #059669;
+  --chart-2: #d97706;
+  --chart-3: #2563eb;
+  --chart-4: #db2777;
+  --chart-5: #7c3aed;
+
   /* Text sizes */
   --text-xs: 0.75rem;
   --text-sm: 0.875rem;
@@ -98,7 +103,8 @@
   --text-2xl: 1.5rem;
   --text-3xl: 1.875rem;
   --text-4xl: 2.25rem;
-  
+  --text-5xl: 3rem;
+
   /* Spacing scale */
   --spacing-xs: 0.25rem;
   --spacing-sm: 0.5rem;
@@ -108,6 +114,7 @@
   --spacing-2xl: 3rem;
 }
 
+/* Dark theme — toggled via a `.dark` class on <html> (see useTheme hook) */
 .dark {
   --background: #0b0f0d;
   --background-secondary: #0f1512;
@@ -144,6 +151,10 @@
   --ring: #34d399;
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
+  --success: #2fb579;
+  --success-foreground: #eafff6;
+  --warning: #eab308;
+  --warning-foreground: #1a1300;
   --sidebar: #0f1512;
   --sidebar-foreground: #e6f2ec;
   --sidebar-primary: #1b7f5f;
@@ -152,6 +163,11 @@
   --sidebar-accent-foreground: #e6f2ec;
   --sidebar-border: #23312b;
   --sidebar-ring: #2fb579;
+  --chart-1: #059669;
+  --chart-2: #d97706;
+  --chart-3: #2563eb;
+  --chart-4: #db2777;
+  --chart-5: #7c3aed;
 }
 
 @theme inline {
@@ -212,6 +228,8 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --font-sans: var(--font-sans);
+  --font-display: var(--font-display);
 }
 
 @layer base {
@@ -221,12 +239,15 @@
 
   body {
     @apply bg-background text-foreground;
-    font-family: 'Consolas', 'Courier New', monospace;
+    font-family: var(--font-sans);
   }
 
   /**
   * Default typography styles for HTML elements (h1-h4, p, label, button, input).
   * These are in @layer base, so Tailwind utility classes (like text-sm, text-lg) automatically override them.
+  * Headings use --font-display (Sora) for a distinct display voice; everything
+  * else uses --font-sans (Inter) — the weight/size/font pairing is what carries
+  * the hierarchy from h1 down to body text.
   */
 
   html {
@@ -234,44 +255,52 @@
   }
 
   h1 {
+    font-family: var(--font-display);
     font-size: var(--text-4xl);
-    font-weight: 700;
-    line-height: 1.2;
+    font-weight: 800;
+    line-height: 1.15;
     letter-spacing: -0.02em;
   }
 
   h2 {
+    font-family: var(--font-display);
     font-size: var(--text-3xl);
     font-weight: 700;
-    line-height: 1.3;
-    letter-spacing: -0.01em;
+    line-height: 1.25;
+    letter-spacing: -0.015em;
   }
 
   h3 {
+    font-family: var(--font-display);
     font-size: var(--text-2xl);
     font-weight: 600;
-    line-height: 1.4;
+    line-height: 1.35;
+    letter-spacing: -0.01em;
   }
 
   h4 {
+    font-family: var(--font-display);
     font-size: var(--text-xl);
     font-weight: 600;
     line-height: 1.4;
   }
 
   p {
+    font-family: var(--font-sans);
     font-size: var(--text-base);
     font-weight: var(--font-weight-normal);
     line-height: 1.6;
   }
 
   label {
+    font-family: var(--font-sans);
     font-size: var(--text-sm);
     font-weight: 500;
     line-height: 1.5;
   }
 
   button {
+    font-family: var(--font-sans);
     font-size: var(--text-base);
     font-weight: 500;
     line-height: 1.5;
@@ -280,6 +309,7 @@
   input,
   select,
   textarea {
+    font-family: var(--font-sans);
     font-size: var(--text-base);
     font-weight: var(--font-weight-normal);
     line-height: 1.5;
@@ -295,7 +325,7 @@
   textarea:focus {
     outline: none;
     border-color: var(--input-border-focus);
-    box-shadow: 0 0 0 3px rgba(61, 220, 151, 0.15);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 20%, transparent);
   }
 
   input::placeholder,

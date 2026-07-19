@@ -6,8 +6,9 @@
  */
 
 const Event = require('../models/Event');
-const { EVENT_STATUS, EVENT_TYPES, EVENT_CATEGORIES } = require('../utils/constants');
+const { EVENT_STATUS, EVENT_TYPES, EVENT_CATEGORIES, ACTOR_TYPES } = require('../utils/constants');
 const { ownsEvent, ownershipDenied } = require('../utils/accessControl');
+const { notify } = require('../utils/notify');
 
 /**
  * Compute the effective (display) status of an event based on current time.
@@ -452,6 +453,29 @@ const updateEvent = async (req, res) => {
 };
 
 /**
+ * Notify every participant following this event's organizer that a new
+ * event was published. Best-effort — failures are caught by the caller.
+ */
+const notifyFollowersOfNewEvent = async (event) => {
+  const User = require('../models/User');
+  const Organizer = require('../models/Organizer');
+
+  const organizer = await Organizer.findById(event.organizerId).select('name');
+  const followers = await User.find({ 'preferences.followedOrganizers': event.organizerId }).select('_id');
+
+  await Promise.all(followers.map((follower) =>
+    notify({
+      recipientType: ACTOR_TYPES.USER,
+      recipientId: follower._id,
+      type: 'event_published',
+      title: 'New event from a club you follow',
+      message: `${organizer?.name || 'An organizer you follow'} just published "${event.name}".`,
+      link: `/participant/events/${event._id}`
+    })
+  ));
+};
+
+/**
  * Publish event
  * POST /organizer/events/:id/publish
  */
@@ -505,6 +529,10 @@ const publishEvent = async (req, res) => {
     event.status = EVENT_STATUS.PUBLISHED;
     await event.save();
 
+    notifyFollowersOfNewEvent(event).catch((err) =>
+      console.error('Failed to notify followers of new event:', err.message)
+    );
+
     res.status(200).json({
       success: true,
       message: 'Event published successfully',
@@ -532,7 +560,7 @@ const publishEvent = async (req, res) => {
  *
  * Query params (all optional):
  *   attended=true|false          — filter by attendance
- *   participantType=iiit|non-iiit — filter by institution category
+ *   participantType=affiliated|general — filter by institution category
  */
 const viewEventRegistrations = async (req, res) => {
   try {

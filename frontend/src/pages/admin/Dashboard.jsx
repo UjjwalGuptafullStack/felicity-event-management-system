@@ -4,7 +4,8 @@ import { useAuth } from '../../context/AuthContext';
 import { getAdminStats } from '../../api/admin';
 import { StatsCard } from '../../components/design-system/StatsCard';
 import { GradientButton } from '../../components/design-system/GradientButton';
-import { Users, UserCog, Calendar, KeyRound, LogOut, ShieldCheck, UserPlus } from 'lucide-react';
+import { Users, UserCog, Calendar, LogOut, ShieldCheck, UserPlus } from 'lucide-react';
+import { ThemeToggle } from '../../components/ThemeToggle';
 import { motion } from 'motion/react';
 
 function AdminDashboard() {
@@ -58,15 +59,7 @@ function AdminDashboard() {
               <UserPlus className="w-4 h-4" />
               <span className="hidden sm:inline">Manage Clubs</span>
             </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => navigate('/admin/password-resets')}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-secondary/10 text-secondary hover:bg-secondary/20 transition-colors text-sm"
-            >
-              <KeyRound className="w-4 h-4" />
-              <span className="hidden sm:inline">Password Resets</span>
-            </motion.button>
+            <ThemeToggle />
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
@@ -84,7 +77,7 @@ function AdminDashboard() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
+          className="grid grid-cols-1 md:grid-cols-3 gap-6"
         >
           <StatsCard
             title="Total Users"
@@ -110,14 +103,6 @@ function AdminDashboard() {
             change="Platform-wide"
             changeType="neutral"
           />
-          <StatsCard
-            title="Pending Resets"
-            value={stats?.pendingPasswordResets || 0}
-            icon={KeyRound}
-            gradient="primary"
-            change="Needs review"
-            changeType="neutral"
-          />
         </motion.div>
 
         <motion.div
@@ -130,9 +115,6 @@ function AdminDashboard() {
           <div className="flex flex-wrap gap-4">
             <GradientButton variant="primary" onClick={() => navigate('/admin/organizers')}>
               Manage Clubs / Organizers
-            </GradientButton>
-            <GradientButton variant="secondary" onClick={() => navigate('/admin/password-resets')}>
-              Review Password Reset Requests
             </GradientButton>
           </div>
         </motion.div>

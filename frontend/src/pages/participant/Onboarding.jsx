@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Sparkles, CheckCircle2, ArrowRight, ChevronRight, Users, Heart } from 'lucide-react';
 import { completeOnboarding, listOrganizers, followOrganizer } from '../../api/participant';
+import { getCategoryLabel } from '../../utils/organizerCategories';
 
 const INTEREST_OPTIONS = [
   { value: 'tech',           label: 'Technology & Coding',   emoji: '💻' },
@@ -69,8 +70,7 @@ function Onboarding() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4"
-      style={{ background: 'radial-gradient(ellipse at top, #0f1c16 0%, #0b0f0d 60%)' }}>
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <motion.div
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
@@ -83,7 +83,7 @@ function Onboarding() {
           <div className="px-8 py-7">
             <div className="flex items-center gap-2 mb-3">
               <Sparkles className="w-5 h-5 text-white/90" />
-              <span className="text-white/80 text-sm font-medium tracking-wide">Welcome to Felicity!</span>
+              <span className="text-white/80 text-sm font-medium tracking-wide">Welcome to Convene!</span>
             </div>
             <h1 className="text-3xl sm:text-4xl font-extrabold text-white mb-1.5 leading-tight">
               {step === 1 ? 'What are you into?' : 'Clubs to follow?'}
@@ -202,7 +202,7 @@ function Onboarding() {
                             <div className="flex-1 min-w-0">
                               <p className="font-semibold text-foreground text-sm truncate">{org.name}</p>
                               {org.category && (
-                                <p className="text-xs text-muted-foreground truncate mt-0.5">{org.category}</p>
+                                <p className="text-xs text-muted-foreground truncate mt-0.5">{getCategoryLabel(org.category)}</p>
                               )}
                             </div>
                             <button

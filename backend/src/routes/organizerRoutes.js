@@ -24,6 +24,7 @@ const {
 const {
   getOrganizerProfile,
   updateOrganizerProfile,
+  changeOrganizerPassword,
 } = require('../controllers/organizerProfileController');
 
 // All organizer routes require authentication + organizer role
@@ -33,6 +34,7 @@ router.use(requireOrganizer());
 // Profile routes
 router.get('/profile', getOrganizerProfile);
 router.patch('/profile', updateOrganizerProfile);
+router.post('/me/change-password', changeOrganizerPassword);
 
 // Dashboard route
 router.get('/dashboard', getOrganizerDashboard);

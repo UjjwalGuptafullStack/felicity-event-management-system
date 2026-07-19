@@ -40,12 +40,12 @@ const Home = () => {
           <div className="inline-flex items-center gap-3 mb-6">
             <Sparkles className="w-16 h-16 text-white" />
           </div>
-          <h1 className="text-5xl md:text-7xl font-bold text-white mb-4">
-            <span className="bg-gradient-to-r from-accent to-accent-light bg-clip-text text-transparent">Felicity</span>
+          <h1 className="text-5xl md:text-7xl font-display font-extrabold text-white mb-4">
+            <span className="bg-gradient-to-r from-accent to-accent-light bg-clip-text text-transparent">Convene</span>
             {' '}Event Management
           </h1>
           <p className="text-xl md:text-2xl text-white/90 max-w-2xl mx-auto leading-relaxed">
-            Your ultimate college fest platform - vibrant, modern, and tech-savvy
+            The complete platform for running campus and club events — vibrant, modern, and built for organizers
           </p>
         </motion.div>
         
@@ -94,10 +94,10 @@ const Home = () => {
           transition={{ duration: 0.6, delay: 0.4 }}
           className="text-center"
         >
-          <p className="text-white/90 mb-4 text-lg">New to Felicity?</p>
+          <p className="text-white/90 mb-4 text-lg">New to Convene?</p>
           <Link to="/register">
             <GradientButton variant="accent" size="lg">
-              Join the Fest →
+              Get Started →
             </GradientButton>
           </Link>
         </motion.div>

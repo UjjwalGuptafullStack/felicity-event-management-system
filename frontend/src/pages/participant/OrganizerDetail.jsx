@@ -4,6 +4,7 @@ import { getOrganizerDetails, followOrganizer, unfollowOrganizer } from '../../a
 import { GradientButton } from '../../components/design-system/GradientButton';
 import { Users, Mail, Tag, Heart, Calendar, ArrowLeft, Radio, Clock, CheckCircle2, Lock } from 'lucide-react';
 import { motion } from 'motion/react';
+import { getCategoryLabel } from '../../utils/organizerCategories';
 
 const CATEGORY_LABELS = {
   tech: 'Technology & Coding',
@@ -266,7 +267,7 @@ function OrganizerDetail() {
               {organizer.category && (
                 <div className="flex items-center gap-2 text-muted-foreground mb-3 text-sm">
                   <Tag className="w-3.5 h-3.5" />
-                  <span>{organizer.category}</span>
+                  <span>{getCategoryLabel(organizer.category)}</span>
                 </div>
               )}
               {organizer.description && (
